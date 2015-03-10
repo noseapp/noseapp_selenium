@@ -1,17 +1,18 @@
 # -*- coding: utf8 -*-
 
+from selenium.webdriver.remote.webdriver import WebDriver
+
 
 def make_object(web_element):
     """
-    Функция конвертирует WebElement в объект
-
-    Пример:
+    Example:
 
         input = driver.find_element...
         value = make_object(input).value
 
-    :param web_element: объект WebElement
+    :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
+    # TODO: __setattr__
     class WebElementToObject(object):
 
         def __init__(self, web_element):
@@ -23,19 +24,27 @@ def make_object(web_element):
             if atr:
                 return atr
 
-            raise AttributeError('{}: {}'.format(repr(self._web_element), item))
+            raise AttributeError('{} "{}"'.format(repr(self._web_element), item))
 
     return WebElementToObject(web_element)
 
 
 class Container(object):
-    """
-    Класс реализует контенер для для другого класса.
-    Основная задача - обеспечить отложенную инициализацию объекта.
-    """
 
     def __init__(self, _class):
         self.__class = _class
 
     def __call__(self, *args, **kwargs):
         return self.__class(*args, **kwargs)
+
+
+def get_driver_from_web_element(web_element):
+    """
+    :type web_element: selenium.webdriver.remote.webdriver.WebElement
+    """
+    driver = web_element._parent
+
+    if isinstance(driver, WebDriver):
+        return driver
+
+    return get_driver_from_web_element(driver)

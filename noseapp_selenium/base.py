@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from functools import wraps
 from urllib2 import URLError
 
+from noseapp.exc import CrashError
+from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
-from noseapp.exc import CrashError
-from noseapp.ext.selenium_ex import drivers
-from noseapp.utils.common import waiting_for
+from noseapp_selenium import drivers
 
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ _DRIVER_TO_CAPABILITIES = {
     drivers.IE: DesiredCapabilities.INTERNETEXPLORER,
 }
 
+DEFAULT_IMPLICITLY_WAIT = 30
+DEFAULT_MAXIMIZE_WINDOW = True
 DEFAULT_DRIVER = drivers.CHROME
 
 GET_DRIVER_TIMEOUT = 10
@@ -32,9 +35,6 @@ class SeleniumExError(CrashError):
 
 
 def get_capabilities(driver_name):
-    """
-    Возвращает capabilities по имении драйвера
-    """
     try:
         return _DRIVER_TO_CAPABILITIES[driver_name]
     except KeyError:
@@ -43,19 +43,45 @@ def get_capabilities(driver_name):
         )
 
 
+def apply_settings(f):
+
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        driver = f(self, *args, **kwargs)
+
+        if self._implicitly_wait is not None:
+            driver.IMPLICITLY_WAIT = self._implicitly_wait
+            driver.implicitly_wait(self._implicitly_wait)
+        else:
+            driver.IMPLICITLY_WAIT = 0
+
+        if self._maximize_window:
+            driver.maximize_window()
+
+        return driver
+
+    return wrapper
+
+
 class SeleniumEx(object):
     """
-    Класс реализует интерфейс для инициализации
-    driver-ов из пакета selenium. Устанавливается как
-    расширение для NoseApp
+    Initialize selenium extension for noseapp
     """
 
     name = 'selenium'
 
-    def __init__(self, config, use_remote=False, driver_name=DEFAULT_DRIVER):
+    def __init__(
+            self,
+            config,
+            use_remote=False,
+            driver_name=DEFAULT_DRIVER,
+            maximize_window=DEFAULT_MAXIMIZE_WINDOW,
+            implicitly_wait=DEFAULT_IMPLICITLY_WAIT):
         self._config = config
         self._use_remote = use_remote
         self._driver_name = driver_name.lower()
+        self._maximize_window = maximize_window
+        self._implicitly_wait = implicitly_wait
 
         logger.debug(
             'Selenium-EX initialize. Config: {}, Use Remote: {}, Driver name: {}'.format(
@@ -70,6 +96,7 @@ class SeleniumEx(object):
         return self._config
 
     @property
+    @apply_settings
     def remote(self):
         remote_config = self._config.get('REMOTE_WEBDRIVER')
 
@@ -90,6 +117,7 @@ class SeleniumEx(object):
         )
 
     @property
+    @apply_settings
     def ie(self):
         ie_config = self._config.get('IE_WEBDRIVER')
 
@@ -101,6 +129,7 @@ class SeleniumEx(object):
         return drivers.IeWebDriver(**ie_config)
 
     @property
+    @apply_settings
     def chrome(self):
         chrome_config = self._config.get('CHROME_WEBDRIVER')
 
@@ -112,6 +141,7 @@ class SeleniumEx(object):
         return drivers.ChromeWebDriver(**chrome_config)
 
     @property
+    @apply_settings
     def firefox(self):
         firefox_config = self._config.get('FIREFOX_WEBDRIVER', {})
 
@@ -120,6 +150,7 @@ class SeleniumEx(object):
         return drivers.FirefoxWebDriver(**firefox_config)
 
     @property
+    @apply_settings
     def phantom(self):
         phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
 
@@ -131,6 +162,7 @@ class SeleniumEx(object):
         return drivers.PhantomJSWebDriver(**phantom_config)
 
     @property
+    @apply_settings
     def opera(self):
         opera_config = self._config.get('OPERA_WEBDRIVER')
 
@@ -142,9 +174,6 @@ class SeleniumEx(object):
         return drivers.OperaWebDriver(**opera_config)
 
     def _get_local_driver(self):
-        """
-        получить WebDriver который используется локально
-        """
         driver = getattr(self, self._driver_name, None)
 
         if driver:
@@ -155,34 +184,26 @@ class SeleniumEx(object):
         )
 
     def _get_remote_driver(self):
-        """
-        Получить remote драйвер
-        """
         return self.remote
 
     def get_driver(self, timeout=GET_DRIVER_TIMEOUT, sleep=GET_DRIVER_SLEEP):
-        """
-        Возвращает инстанс драйвера
-        """
         def get_driver(func):
-            """
-            Если драйвер отказывает в соединении, то будем
-            пытаться установить соединение в течении timeout
-            """
             try:
                 return func()
             except URLError:
                 return None
 
         if self._use_remote:
-            return waiting_for(
+            driver = waiting_for(
                 lambda: get_driver(self._get_remote_driver),
                 timeout=timeout,
                 sleep=sleep,
             )
+        else:
+            driver = waiting_for(
+                lambda: get_driver(self._get_local_driver),
+                timeout=timeout,
+                sleep=sleep,
+            )
 
-        return waiting_for(
-            lambda: get_driver(self._get_local_driver),
-            timeout=timeout,
-            sleep=sleep,
-       )
+        return driver
