@@ -23,4 +23,7 @@ if __name__ == '__main__':
         zip_safe=False,
         platforms='any',
         install_requires=requirements,
+        dependency_links=[
+            'git+https://github.com/trifonovmixail/noseapp.git@master',
+        ],
     )
