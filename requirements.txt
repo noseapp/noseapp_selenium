@@ -1,1 +1,2 @@
+git+https://github.com/trifonovmixail/noseapp.git@master
 selenium==2.44.0
