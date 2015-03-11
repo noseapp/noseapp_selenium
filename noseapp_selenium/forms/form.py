@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 from copy import deepcopy
+from contextlib import contextmanager
 
 from noseapp_selenium import QueryProcessor
 from noseapp_selenium.forms.fields import FormField
 from noseapp_selenium.forms.iterators import FieldsIterator
 from noseapp_selenium.tools import Container as FormContainer
-from noseapp_selenium.forms.iterators import RequiredIterator
 from noseapp_selenium.forms.fields import SimpleFieldInterface
-from noseapp_selenium.forms.iterators import ReplaceValueIterator
-from noseapp_selenium.forms.iterators import ValueToInvalidValueIterator
+from noseapp_selenium.forms.iterators import FieldItemsIterator
+from noseapp_selenium.forms.iterators import RequireFieldsIterator
+from noseapp_selenium.forms.iterators import InvalidValueFieldsIterator
 
 
 def make_field(form_class):
@@ -24,6 +25,24 @@ def make_field(form_class):
     return FormContainer(form_class)
 
 
+@contextmanager
+def preserve_original(form, ignore_exc=None):
+    """
+    :type form: form.UIForm
+    :type ignore_exc: BaseException class or tuple
+    """
+    try:
+        if ignore_exc:
+            try:
+                yield
+            except ignore_exc:
+                pass
+        else:
+            yield
+    finally:
+        form.reload()
+
+
 class FormMemento(dict):
 
     def _set_field(self, filed):
@@ -33,6 +52,7 @@ class FormMemento(dict):
         self[filed] = {
             'value': filed.value,
             'required': filed.required,
+            'error_mess': filed.error_mess,
             'invalid_value': filed.invalid_value,
         }
 
@@ -49,6 +69,7 @@ class FormMemento(dict):
             if orig:
                 field.value = orig['value']
                 field.required = orig['required']
+                field.error_mess = orig['error_mess']
                 field.invalid_value = orig['invalid_value']
             else:
                 continue
@@ -112,8 +133,19 @@ class UIForm(SimpleFieldInterface):
     def field_names(self):
         return [field.name for field in self._fields]
 
+    def be_changed(self, ignore_exc=None):
+        return preserve_original(self, ignore_exc=ignore_exc)
+
     def submit(self):
+        """
+        Your submit script is there
+        """
         pass
+
+    def validate(self):
+        """
+        Your validation script is there
+        """
 
     def reload(self):
         self._memento.restore(self._fields)
@@ -134,25 +166,30 @@ class UIForm(SimpleFieldInterface):
         for field in self._fields:
             field.clear()
 
+        self.reset_memo()
+
     def assert_submit(self):
         assert self.is_submit, 'Form "{}" is not saved'.format(self.__class__.__name__)
 
     def assert_not_submit(self):
         assert not self.is_submit, 'Form "{}" is saved'.format(self.__class__.__name__)
 
-    def each_required(self):
+    def each_required(self, items=False):
         """
         Example:
 
             form = MyForm(driver)
             for fields in form.each_required():
                 fields.fill()
+                #
+                # for field in fields:
+                #     ...
                 form.submit()
                 ...
 
         :return: iterators.RequiredIterator
         """
-        return RequiredIterator(self)
+        return RequireFieldsIterator(self, items=items)
 
     def each_fields(self, exclude=None):
         """
@@ -168,34 +205,34 @@ class UIForm(SimpleFieldInterface):
         """
         return FieldsIterator(self, exclude=exclude)
 
-    def each_replace(self, field, values):
+    def each_items(self, field, items):
         """
         Example:
 
             form = MyForm(driver)
-            for altered_form in form.each_replace(form.title, ('Hello', 'World', '!')):
-                with altered_form():
-                    form.fill()
-                    form.submit()
-                    ...
+            for field, value in form.each_items(form.title, ('Hello', 'World', '!')):
+                form.fill(exclude=[field])
+                field.fill(value)
+                form.submit()
+                ...
 
         :type field: fields.FormField
         :type values: list or tuple
-        :return: iterators.ReplaceValueIterator
+        :return: iterators.FieldItemsIterator
         """
-        return ReplaceValueIterator(self, field, values)
+        return FieldItemsIterator(self, field, items)
 
     def each_invalid(self, exclude=None):
         """
         Example:
 
             form = MyForm(driver)
-            for altered_form in form.each_invalid():
-                with altered_form():
-                    form.fill()
-                    form.submit()
-                    ...
+            for field in form.each_invalid():
+                form.fill(exclude=[field])
+                field.fill(field.invalid_value)
+                form.submit()
+                ...
 
         :type exclude: list or tuple
         """
-        return ValueToInvalidValueIterator(self, exclude=exclude)
+        return InvalidValueFieldsIterator(self, exclude=exclude)

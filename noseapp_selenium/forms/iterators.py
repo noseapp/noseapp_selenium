@@ -1,34 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from collections import Iterator
-from contextlib import contextmanager
-
-
-@contextmanager
-def preserve_original(form, ignore_exc=None):
-    """
-    :type form: form.UIForm
-    :type ignore_exc: BaseException class or tuple
-    """
-    try:
-        if ignore_exc:
-            try:
-                yield
-            except ignore_exc:
-                pass
-        else:
-            yield
-    finally:
-        form.reload()
-
-
-def altered_form(form):
-    """
-    :type form: form.UIForm
-    """
-    def wrapper(ignore_exc=None):
-        return preserve_original(form, ignore_exc=ignore_exc)
-    return wrapper
 
 
 class FieldsIterator(Iterator):
@@ -58,16 +30,18 @@ class FieldsIterator(Iterator):
         return field
 
 
-class ValueToInvalidValueIterator(Iterator):
+class InvalidValueFieldsIterator(Iterator):
 
     def __init__(self, form, exclude=None):
         exclude = exclude or tuple()
 
-        self.__form = form
         self.__current_index = 0
-        self.__fields = [field for field in form._fields if field not in exclude]
+        self.__fields = [
+            field for field in form._fields
+            if field not in exclude and field.invalid_value is not None
+        ]
 
-    def _make_next(self):
+    def next(self):
         try:
             field = self.__fields[self.__current_index]
         except IndexError:
@@ -75,56 +49,52 @@ class ValueToInvalidValueIterator(Iterator):
 
         self.__current_index += 1
 
-        invalid_value = field.invalid_value
-
-        if invalid_value is not None:
-            field.value = invalid_value
-        else:
-            self._make_next()
-
-    def next(self):
-        self._make_next()
-        return altered_form(self.__form)
+        return field
 
 
-class RequiredIterator(Iterator):
+class RequireFieldsIterator(Iterator):
 
-    def __init__(self, form):
+    def __init__(self, form, items=False):
         self.__form = form
+        self.__items = items
         self.__current_index = 0
         self.__required_fields = [field for field in form._fields if field.required]
 
     def next(self):
         try:
-            it = FieldsIterator(
-                self.__form,
-                exclude=(self.__required_fields[self.__current_index],),
-            )
+            exclude_field = self.__required_fields[self.__current_index]
         except IndexError:
             raise StopIteration
 
+        it = FieldsIterator(
+            self.__form,
+            exclude=(exclude_field,),
+        )
+
         self.__current_index += 1
 
+        if self.__items:
+            return exclude_field, it
         return it
 
 
-class ReplaceValueIterator(Iterator):
+class FieldItemsIterator(Iterator):
 
-    def __init__(self, form, field, values):
-        if not isinstance(values, (list, tuple)):
+    def __init__(self, form, field, items):
+        if not isinstance(items, (list, tuple)):
             raise ValueError('values mast be list or tuple')
 
         self.__form = form
         self.__field = field
-        self.__values = values
+        self.__items = items
         self.__current_index = 0
 
     def next(self):
         try:
-            self.__field.value = self.__values[self.__current_index]
+            item = self.__items[self.__current_index]
         except IndexError:
             raise StopIteration
 
         self.__current_index += 1
 
-        return altered_form(self.__form)
+        return self.__field, item

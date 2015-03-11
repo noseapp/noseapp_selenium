@@ -30,6 +30,7 @@ class FormField(object):
                  value=None,
                  required=False,
                  selector=None,
+                 error_mess=None,
                  invalid_value=None,
                  parent=None,
                  weight=None):
@@ -48,6 +49,7 @@ class FormField(object):
 
         self.value = value
         self.required = required
+        self.error_mess = error_mess
         self.invalid_value = invalid_value
 
     def __call__(self, query, parent, memo, settings):
