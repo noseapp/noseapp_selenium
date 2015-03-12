@@ -6,10 +6,6 @@ from setuptools import find_packages
 import noseapp_selenium
 
 
-with open('requirements.txt') as fp:
-    requirements = [req.strip() for req in fp.readlines() if not req.startswith('--')]
-
-
 if __name__ == '__main__':
     setup(
         name='noseapp_selenium',
@@ -22,8 +18,8 @@ if __name__ == '__main__':
         include_package_data=True,
         zip_safe=False,
         platforms='any',
-        install_requires=requirements,
-        dependency_links=[
-            'git+https://github.com/trifonovmixail/noseapp.git@master',
+        install_requires=[
+            'noseapp',
+            'selenium==2.44.0',
         ],
     )
