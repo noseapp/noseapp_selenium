@@ -4,7 +4,6 @@ import logging
 from functools import wraps
 from urllib2 import URLError
 
-from noseapp.exc import CrashError
 from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
@@ -30,7 +29,7 @@ GET_DRIVER_TIMEOUT = 10
 GET_DRIVER_SLEEP = 0.5
 
 
-class SeleniumExError(CrashError):
+class SeleniumExError(BaseException):
     pass
 
 
