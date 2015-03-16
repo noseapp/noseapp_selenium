@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 REPLACE_ATTRIBUTES = {
     '_id': 'id',
     '_class': 'class',
+    '_type': 'type',
 }
 
 REPLACE_TAGS = {
