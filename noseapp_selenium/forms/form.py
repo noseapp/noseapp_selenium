@@ -236,3 +236,6 @@ class UIForm(SimpleFieldInterface):
         :type exclude: list or tuple
         """
         return InvalidValueFieldsIterator(self, exclude=exclude)
+
+    def get_wrapper_element(self):
+        return self._query.from_object(self.Meta.wrapper).first()
