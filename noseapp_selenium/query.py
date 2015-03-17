@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 REPLACE_ATTRIBUTES = {
     '_id': 'id',
     '_class': 'class',
+    '_type': 'type',
 }
 
 REPLACE_TAGS = {
@@ -69,7 +70,7 @@ def _execute(driver, css, get_all):
 
 
 def _replace_attribute(atr_name):
-    return REPLACE_ATTRIBUTES.get(atr_name, atr_name)
+    return REPLACE_ATTRIBUTES.get(atr_name, atr_name).replace('_', '-')
 
 
 def _replace_tag(tag_name):
