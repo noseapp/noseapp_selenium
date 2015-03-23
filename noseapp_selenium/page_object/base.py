@@ -17,9 +17,39 @@ def page_element(query_object):
             return self._query(
                 self._query.from_object(self._wrapper).first(),
             ).from_object(query_object).first()
+
         return self._query.from_object(query_object).first()
 
     return property(wrapper)
+
+
+class WaitConfig(object):
+
+    def __init__(self,
+                 objects=None,
+                 one_of_many=False,
+                 timeout=30,
+                 ready_state_complete=True):
+        self._objects = objects or tuple()
+        self._one_of_many = one_of_many
+        self._timeout = timeout
+        self._ready_state_complete = ready_state_complete
+
+    @property
+    def objects(self):
+        return self._objects
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    @property
+    def one_of_many(self):
+        return self.one_of_many
+
+    @property
+    def ready_state_complete(self):
+        return self._ready_state_complete
 
 
 class PageObjectMeta(type):
@@ -51,83 +81,85 @@ class PageObject(object):
         meta = getattr(self, 'Meta', object())
 
         self._wrapper = getattr(meta, 'wrapper', None)
-        self.wait_complete = WaitComplete(self)
+
+        wait_config = getattr(meta, 'wait_config', WaitConfig())
+        self.wait_complete = WaitComplete(
+            self._driver,
+            self._query,
+            self.__class__.__name__,
+            wait_config,
+        )
 
 
 class WaitComplete(object):
 
-    def __init__(self, page):
-        self._query = page._query
-        self._driver = page._driver
-        self._page_name = page.__class__.__name__
+    def __init__(self, driver, query, page_name, config):
+        self.config = config
 
-        meta = getattr(page, 'Meta', object())
-
-        self._wait_objects = getattr(meta, 'wait_objects', tuple())
-        self._timeout = getattr(meta, 'wait_complete_timeout', 30)
-        self._one_of_many = bool(getattr(meta, 'wait_one_of_many', False))
-        self._ready_state_complete = getattr(meta, 'wait_ready_state_complete', True)
+        self.__query = query
+        self.__driver = driver
+        self.__page_name = page_name
 
     def __call__(self):
-        if self._ready_state_complete:
-            self.ready_state_complete()
+        if self.config.ready_state_complete:
+            self.__ready_state_complete()
 
         wait_funcs = {
-            False: self.all,
-            True: self.one,
+            False: self.__all,
+            True: self.__one_of_many,
         }
-        wait_funcs[self._one_of_many]()
+        wait_funcs[bool(self.config.one_of_many)]()
 
     def __repr__(self):
-        return '<WaitComplete of <{}>>'.format(self._page_name)
+        return '<WaitComplete of <{}>>'.format(self.__page_name)
 
-    def ready_state_complete(self):
+    def __ready_state_complete(self):
         waiting_for(
-            lambda: self._driver.execute_script(
+            lambda: self.__driver.execute_script(
                 'return document.readyState == "complete"',
             ),
-            timeout=self._timeout,
+            timeout=self.config.timeout,
         )
 
-    def all(self):
-        if not self._wait_objects:
+    def __all(self):
+        if not self.config.objects:
             return
 
         queue = Queue()
-        map(queue.put_nowait, self._wait_objects)
+        map(queue.put_nowait, self.config.objects)
         t_start = time.time()
 
-        while (time.time() <= t_start + self._timeout) or (not queue.empty()):
+        while (time.time() <= t_start + self.config.timeout) or (not queue.empty()):
             obj = queue.get()
 
-            if not self._query.from_object(obj).exist:
+            if not self.__query.from_object(obj).exist:
                 queue.put(obj)
         else:
             if not queue.empty():
                 raise TimeoutException(
                     'Could not wait ready page "{}". Timeout "{}" exceeded.'.format(
-                        self._page_name, self._timeout,
+                        self.__page_name, self.config.timeout,
                     ),
                 )
 
-    def one(self):
-        if not self._wait_objects:
+    def __one_of_many(self):
+        if not self.config.objects:
             return
 
         queue = Queue()
-        map(queue.put_nowait, self._wait_objects)
+        map(queue.put_nowait, self.config.objects)
         t_start = time.time()
 
-        while time.time() <= t_start + self._timeout:
+        while time.time() <= t_start + self.config.timeout:
             obj = queue.get()
 
-            if self._query.from_object(obj).exist:
+            if self.__query.from_object(obj).exist:
                 break
 
             queue.put(obj)
         else:
             raise TimeoutException(
                 'Could not wait ready page "{}". Timeout "{}" exceeded.'.format(
-                    self._page_name, self._timeout,
+                    self.__page_name, self.config.timeout,
                 ),
             )
