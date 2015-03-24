@@ -45,7 +45,7 @@ class WaitConfig(object):
 
     @property
     def one_of_many(self):
-        return self.one_of_many
+        return self._one_of_many
 
     @property
     def ready_state_complete(self):
@@ -82,13 +82,14 @@ class PageObject(object):
 
         self._wrapper = getattr(meta, 'wrapper', None)
 
-        wait_config = getattr(meta, 'wait_config', WaitConfig())
-        self.wait_complete = WaitComplete(
-            self._driver,
-            self._query,
-            self.__class__.__name__,
-            wait_config,
-        )
+        if not hasattr(self, 'wait_complete'):
+            wait_config = getattr(meta, 'wait_config', WaitConfig())
+            self.wait_complete = WaitComplete(
+                self._driver,
+                self._query,
+                self.__class__.__name__,
+                wait_config,
+            )
 
 
 class WaitComplete(object):

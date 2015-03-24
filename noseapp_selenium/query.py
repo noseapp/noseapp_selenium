@@ -31,39 +31,39 @@ class QueryError(BaseException):
     pass
 
 
-def _error_handler(e, driver, css):
+def _error_handler(e, client, css):
     prefix = u' ' if e.message else u''
 
-    if isinstance(driver, WebElement):
+    if isinstance(client, WebElement):
         e.message += u'{}QueryProcessor(From: {}, CSS: {})\n\n--\nSEARCH AREA: {}\n--\n'.format(
             prefix,
-            repr(driver),
+            repr(client),
             css,
-            driver.get_attribute('innerHTML'),
+            client.get_attribute('innerHTML'),
         )
     else:
         e.message += u'{}QueryProcessor(From: {}, CSS: {})'.format(
             prefix,
-            repr(driver),
+            repr(client),
             css,
         )
 
 
-def _execute(driver, css, get_all):
+def _execute(client, css, get_all):
     """
     Execute css query
     """
     logger.debug(u'CSS: {} Get all: {}'.format(css, 'Yes' if get_all else 'No'))
 
     css_executor = {
-        True: driver.find_elements_by_css_selector,
-        False: driver.find_element_by_css_selector,
+        True: client.find_elements_by_css_selector,
+        False: client.find_element_by_css_selector,
     }
 
     try:
         return css_executor[get_all](css)
     except WebDriverException as e:
-        _error_handler(e, driver, css)
+        _error_handler(e, client, css)
         raise
     except KeyError:
         raise QueryError('get_all param must be bool type only')
@@ -77,9 +77,9 @@ def _replace_tag(tag_name):
     return REPLACE_TAGS.get(tag_name, tag_name)
 
 
-def _handler(driver, tag):
+def _handler(client, tag):
     """
-    :type driver: selenium.webdriver.remote.webdriver.WebDriver
+    :type client: selenium.webdriver.remote.webdriver.WebDriver
     :param tag: html tag name
     """
     def handle(**selector):
@@ -98,7 +98,7 @@ def _handler(driver, tag):
             ),
         )
 
-        return QueryResult(driver, ''.join(query))
+        return QueryResult(client, ''.join(query))
 
     return handle
 
@@ -139,19 +139,22 @@ def contains(value):
 
 class QueryResult(object):
 
-    def __init__(self, driver, css):
-        self._driver = driver
+    def __init__(self, client, css):
+        self._client = client
         self._css = css
+
+    def __getattr__(self, item):
+        return getattr(QueryProcessor(self.first()), item)
 
     @property
     def exist(self):
-        if isinstance(self._driver, WebDriver):
-            self._driver.implicitly_wait(0)
-            restore_implicitly_wait = lambda: self._driver.implicitly_wait(
-                self._driver.IMPLICITLY_WAIT,
+        if isinstance(self._client, WebDriver):
+            self._client.implicitly_wait(0)
+            restore_implicitly_wait = lambda: self._client.implicitly_wait(
+                self._client.IMPLICITLY_WAIT,
             )
-        elif isinstance(self._driver, WebElement):
-            driver = get_driver_from_web_element(self._driver)
+        elif isinstance(self._client, WebElement):
+            driver = get_driver_from_web_element(self._client)
             driver.implicitly_wait(0)
             restore_implicitly_wait = lambda: driver.implicitly_wait(
                 driver.IMPLICITLY_WAIT,
@@ -187,7 +190,7 @@ class QueryResult(object):
 
     def get(self, index):
         try:
-            return _execute(self._driver, self._css, True)[index]
+            return _execute(self._client, self._css, True)[index]
         except IndexError as e:
             e.message = 'Result does not have element with index "{}". Query: "{}".'.format(
                 index, self._css,
@@ -195,10 +198,10 @@ class QueryResult(object):
             raise
 
     def first(self):
-        return _execute(self._driver, self._css, False)
+        return _execute(self._client, self._css, False)
 
     def all(self):
-        return _execute(self._driver, self._css, True)
+        return _execute(self._client, self._css, True)
 
 
 class QueryProcessor(object):

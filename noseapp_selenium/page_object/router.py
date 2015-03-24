@@ -34,7 +34,7 @@ class PageRouter(object):
 
         cls.__rules[re.compile(r'^{}$'.format(rule))] = page_cls
 
-    def get(self, path, wait=True):
+    def get(self, path, wait=True, go_to=True):
         """
         Get page object instance by path
 
@@ -48,8 +48,8 @@ class PageRouter(object):
         else:
             raise PageIsNotFound(path)
 
-        if self._base_path is not None:
-            self._driver.get('{}{}'.format(self._base_path, path))
+        if self._base_path is not None and go_to:
+            self.go_to(path)
 
             if type(wait) is bool and wait:
                 page.wait_complete()
@@ -61,3 +61,12 @@ class PageRouter(object):
                 waiting_for(wait)
 
         return page
+
+    def get_no_wait(self, path):
+        return self.get(path, wait=False)
+
+    def get_page(self, path):
+        return self.get(path, go_to=False)
+
+    def go_to(self, path):
+        self._driver.get('{}{}'.format(self._base_path, path))
