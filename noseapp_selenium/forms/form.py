@@ -6,14 +6,13 @@ from contextlib import contextmanager
 from noseapp_selenium import QueryProcessor
 from noseapp_selenium.forms.fields import FormField
 from noseapp_selenium.forms.iterators import FieldsIterator
-from noseapp_selenium.tools import Container as FormContainer
 from noseapp_selenium.forms.fields import SimpleFieldInterface
 from noseapp_selenium.forms.iterators import FieldItemsIterator
 from noseapp_selenium.forms.iterators import RequireFieldsIterator
 from noseapp_selenium.forms.iterators import InvalidValueFieldsIterator
 
 
-def make_field(form_class):
+def make_field(form_class, weight=None, name=None):
     """
     Usage form as field
 
@@ -22,7 +21,7 @@ def make_field(form_class):
     if not issubclass(form_class, UIForm):
         raise ValueError('form class is not UIForm subclass')
 
-    return FormContainer(form_class)
+    return FormContainer(form_class, weight, name)
 
 
 @contextmanager
@@ -41,6 +40,22 @@ def preserve_original(form, ignore_exc=None):
             yield
     finally:
         form.reload()
+
+
+class FormContainer(object):
+
+    def __init__(self, _form_cls, weight, name):
+        self.__form_cls = _form_cls
+        self.__weight = weight
+        self.__name = name
+
+    def __call__(self, driver, parent):
+        return self.__form_cls(
+            driver,
+            parent=parent,
+            name=self.__name,
+            weight=self.__weight,
+        )
 
 
 class FormMemento(dict):
@@ -77,12 +92,18 @@ class FormMemento(dict):
 
 class UIForm(SimpleFieldInterface):
 
-    def __init__(self, driver):
+    def __init__(self, driver, weight=None, name=None, parent=None):
         self._fields = []
+        self._sub_forms = []
         self._driver = driver
+        self._weight = weight
+        self._parent = parent
         self._fill_memo = set()
         self._memento = FormMemento()
         self._query = QueryProcessor(driver)
+
+        if not hasattr(self, 'name'):
+            self.name = name
 
         meta = getattr(self, 'Meta', object())
 
@@ -98,7 +119,6 @@ class UIForm(SimpleFieldInterface):
             maybe_field = getattr(self, atr, None)
 
             if isinstance(maybe_field, FormField):
-
                 if maybe_field.name in exclude:
                     delattr(self, atr)
                     continue
@@ -114,7 +134,16 @@ class UIForm(SimpleFieldInterface):
                 self._fields.append(exactly_field)
                 self._memento.add_field(exactly_field)
             elif isinstance(maybe_field, FormContainer):
-                setattr(self, atr, maybe_field(driver))
+                exactly_field = maybe_field(driver, self)
+
+                if exactly_field.name in exclude:
+                    delattr(self, atr)
+                    continue
+
+                setattr(self, atr, exactly_field)
+
+                self._fields.append(exactly_field)
+                self._sub_forms.append(exactly_field)
 
         self._fields.sort(key=lambda f: f.weight)
 
@@ -126,6 +155,10 @@ class UIForm(SimpleFieldInterface):
         return deepcopy(cls)
 
     @property
+    def weight(self):
+        return self._weight
+
+    @property
     def is_submit(self):
         return False
 
@@ -133,31 +166,34 @@ class UIForm(SimpleFieldInterface):
     def field_names(self):
         return [field.name for field in self._fields]
 
-    def be_changed(self, ignore_exc=None):
-        return preserve_original(self, ignore_exc=ignore_exc)
-
     def submit(self):
         """
         Your submit script is there
         """
         pass
 
-    def validate(self):
-        """
-        Your validation script is there
-        """
-
     def reload(self):
         self._memento.restore(self._fields)
+
+        if self._sub_forms:
+            for sub_form in self._sub_forms:
+                sub_form.reload()
 
     def reset_memo(self):
         self._fill_memo.clear()
 
+        if self._sub_forms:
+            for sub_form in self._sub_forms:
+                sub_form.reset_memo()
+
     def fill(self, exclude=None):
         exclude = exclude or tuple()
 
+        if self._parent is not None:
+            self._parent._fill_memo.add(self)
+
         for field in self._fields:
-            if (field.name not in self._fill_memo) and (field not in exclude):
+            if (field not in self._fill_memo) and (field not in exclude):
                 field.fill()
 
         self.reset_memo()
@@ -238,4 +274,7 @@ class UIForm(SimpleFieldInterface):
         return InvalidValueFieldsIterator(self, exclude=exclude)
 
     def get_wrapper_element(self):
+        """
+        Get web element from meta wrapper
+        """
         return self._query.from_object(self.Meta.wrapper).first()

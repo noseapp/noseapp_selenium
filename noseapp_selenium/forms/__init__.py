@@ -43,11 +43,12 @@ Example:
 from noseapp_selenium.forms import fields
 from noseapp_selenium.forms.form import UIForm
 from noseapp_selenium.forms.form import make_field
-
+from noseapp_selenium.forms.form import preserve_original
 
 
 __all__ = (
     fields,
     UIForm,
     make_field,
+    preserve_original,
 )
