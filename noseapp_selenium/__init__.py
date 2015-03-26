@@ -7,9 +7,6 @@ from noseapp_selenium.page_object import PageObject
 from noseapp_selenium.page_object import PageRouter
 
 
-__version__ = '0.0.0'
-
-
 __all__ = (
     SeleniumEx,
     PageObject,

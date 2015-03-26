@@ -94,7 +94,6 @@ class SeleniumEx(object):
     def config(self):
         return self._config
 
-    @property
     @apply_settings
     def remote(self):
         remote_config = self._config.get('REMOTE_WEBDRIVER')
@@ -115,7 +114,6 @@ class SeleniumEx(object):
             **options
         )
 
-    @property
     @apply_settings
     def ie(self):
         ie_config = self._config.get('IE_WEBDRIVER')
@@ -127,7 +125,6 @@ class SeleniumEx(object):
 
         return drivers.IeWebDriver(**ie_config)
 
-    @property
     @apply_settings
     def chrome(self):
         chrome_config = self._config.get('CHROME_WEBDRIVER')
@@ -139,7 +136,6 @@ class SeleniumEx(object):
 
         return drivers.ChromeWebDriver(**chrome_config)
 
-    @property
     @apply_settings
     def firefox(self):
         firefox_config = self._config.get('FIREFOX_WEBDRIVER', {})
@@ -148,7 +144,6 @@ class SeleniumEx(object):
 
         return drivers.FirefoxWebDriver(**firefox_config)
 
-    @property
     @apply_settings
     def phantom(self):
         phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
@@ -160,7 +155,6 @@ class SeleniumEx(object):
 
         return drivers.PhantomJSWebDriver(**phantom_config)
 
-    @property
     @apply_settings
     def opera(self):
         opera_config = self._config.get('OPERA_WEBDRIVER')
@@ -176,16 +170,19 @@ class SeleniumEx(object):
         driver = getattr(self, self._driver_name, None)
 
         if driver:
-            return driver
+            return driver()
 
         raise SeleniumExError(
             'incorrect driver name "{}"'.format(self._driver_name),
         )
 
-    def _get_remote_driver(self):
-        return self.remote
+    def get_driver(self,
+                   driver_name=None,
+                   timeout=GET_DRIVER_TIMEOUT,
+                   sleep=GET_DRIVER_SLEEP):
+        if driver_name is not None:
+            self._driver_name = driver_name
 
-    def get_driver(self, timeout=GET_DRIVER_TIMEOUT, sleep=GET_DRIVER_SLEEP):
         def get_driver(func):
             try:
                 return func()
@@ -194,7 +191,7 @@ class SeleniumEx(object):
 
         if self._use_remote:
             driver = waiting_for(
-                lambda: get_driver(self._get_remote_driver),
+                lambda: get_driver(self.remote),
                 timeout=timeout,
                 sleep=sleep,
             )
