@@ -204,6 +204,12 @@ class UIForm(SimpleFieldInterface):
 
         self.reset_memo()
 
+    def get_wrapper_element(self):
+        """
+        Get web element from meta wrapper
+        """
+        return self._query.from_object(self.Meta.wrapper).first()
+
     def assert_submit(self):
         assert self.is_submit, 'Form "{}" is not saved'.format(self.__class__.__name__)
 
@@ -272,9 +278,3 @@ class UIForm(SimpleFieldInterface):
         :type exclude: list or tuple
         """
         return InvalidValueFieldsIterator(self, exclude=exclude)
-
-    def get_wrapper_element(self):
-        """
-        Get web element from meta wrapper
-        """
-        return self._query.from_object(self.Meta.wrapper).first()
