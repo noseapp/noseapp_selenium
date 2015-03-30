@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+  # -*- coding: utf-8 -*-
 
 from copy import deepcopy
 from contextlib import contextmanager
@@ -48,6 +48,10 @@ class FormContainer(object):
         self.__form_cls = _form_cls
         self.__weight = weight
         self.__name = name
+
+    @property
+    def name(self):
+        return self.__name or self.__form_cls.name
 
     def __call__(self, driver, parent):
         return self.__form_cls(
@@ -106,6 +110,19 @@ class UIForm(SimpleFieldInterface):
             self.name = name
 
         meta = getattr(self, 'Meta', object())
+        exclude = getattr(meta, 'exclude', tuple())
+
+        for atr in (a for a in dir(self) if not a.startswith('_')):
+            maybe_field = getattr(self, atr)
+
+            if hasattr(maybe_field, 'name') and maybe_field.name in exclude:
+                delattr(self, atr)
+                continue
+
+            self.add_field(atr, maybe_field)
+
+    def add_field(self, name, maybe_field):
+        meta = getattr(self, 'Meta', object())
 
         fields_settings = {
             'remember': getattr(meta, 'remember', True),
@@ -113,38 +130,26 @@ class UIForm(SimpleFieldInterface):
         }
 
         wrapper = getattr(meta, 'wrapper', None)
-        exclude = getattr(meta, 'exclude', tuple())
 
-        for atr in (a for a in dir(self) if not a.startswith('_')):
-            maybe_field = getattr(self, atr, None)
+        if isinstance(maybe_field, FormField):
+            exactly_field = deepcopy(maybe_field)
+            exactly_field.configure(
+                self._query,
+                wrapper,
+                self._fill_memo,
+                fields_settings,
+            )
+            self._memento.add_field(exactly_field)
 
-            if isinstance(maybe_field, FormField):
-                if maybe_field.name in exclude:
-                    delattr(self, atr)
-                    continue
+        elif isinstance(maybe_field, FormContainer):
+            exactly_field = maybe_field(self._driver, self)
+            self._sub_forms.append(exactly_field)
 
-                exactly_field = deepcopy(maybe_field)
-                setattr(self, atr, exactly_field)
-                exactly_field(
-                    self._query,
-                    wrapper,
-                    self._fill_memo,
-                    fields_settings,
-                )
-                self._fields.append(exactly_field)
-                self._memento.add_field(exactly_field)
-            elif isinstance(maybe_field, FormContainer):
-                exactly_field = maybe_field(driver, self)
+        else:
+            return
 
-                if exactly_field.name in exclude:
-                    delattr(self, atr)
-                    continue
-
-                setattr(self, atr, exactly_field)
-
-                self._fields.append(exactly_field)
-                self._sub_forms.append(exactly_field)
-
+        setattr(self, name, exactly_field)
+        self._fields.append(exactly_field)
         self._fields.sort(key=lambda f: f.weight)
 
     @classmethod
