@@ -44,15 +44,6 @@ def make_object(web_element):
     return WebElementToObject(web_element)
 
 
-class Container(object):
-
-    def __init__(self, _class):
-        self.__class = _class
-
-    def __call__(self, *args, **kwargs):
-        return self.__class(*args, **kwargs)
-
-
 def get_driver_from_web_element(web_element):
     """
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
