@@ -52,7 +52,7 @@ class FormField(object):
         self.error_mess = error_mess
         self.invalid_value = invalid_value
 
-    def __call__(self, query, parent, memo, settings):
+    def configure(self, query, parent, memo, settings):
         self._init_query(query)
 
         if self._parent is None:
