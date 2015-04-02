@@ -19,7 +19,7 @@ class PageRouter(object):
 
     def __init__(self, driver, base_path=None):
         self._driver = driver
-        self._base_path = base_path
+        self._base_path = base_path.rstrip('/')
 
     @classmethod
     def add_rule(cls, rule, page_cls):
@@ -33,6 +33,10 @@ class PageRouter(object):
             raise ValueError('page is not PageObject subclass')
 
         cls.__rules[re.compile(r'^{}$'.format(rule))] = page_cls
+
+    @property
+    def base_path(self):
+        return self._base_path + '/'
 
     def get(self, path, wait=True, go_to=True):
         """
