@@ -70,6 +70,9 @@ class FormField(object):
         self._observer = form._observer
         self._settings = form._settings
 
+        if callable(self.value):
+            self.value = self.value()
+
         self.__is_bind = True
 
     @property
