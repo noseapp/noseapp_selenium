@@ -70,6 +70,9 @@ class FormField(object):
         self._observer = form._observer
         self._settings = form._settings
 
+        if callable(self.value):
+            self.value = self.value()
+
         self.__is_bind = True
 
     @property
@@ -121,9 +124,6 @@ class Input(field_on_base(SimpleFieldInterface)):
     def fill(self, value=None):
         if value is None:
             value = self.value
-
-        if callable(value):
-            value = value()
 
         self.get_web_element().send_keys(*value)
         self._observer.fill_field_handler(self)
