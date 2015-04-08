@@ -108,7 +108,7 @@ Forms
         first_group = make_field(FirstFieldsGroup, weight=2)
 
         def submit():
-            wrapper_element = get_wrapper_element
+            wrapper_element = self.get_wrapper_element()
             button = self._query(wrapper_element).input(id='button').first()
             button.click()
 
@@ -185,7 +185,7 @@ Page Object
 
 
     router = PageRouter(driver, base_path='http://my-site.com')
-    page = router.get('/my_page')  # or page = MyPage(driver)
+    page = router.get('/my_page/')  # or page = MyPage(driver)
     form = page.get_my_form()
 
     page.element.click()
