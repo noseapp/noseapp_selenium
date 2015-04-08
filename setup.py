@@ -4,7 +4,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-__version__ = '0.0.0'
+__version__ = '1.0.0'
 
 
 if __name__ == '__main__':
@@ -16,11 +16,20 @@ if __name__ == '__main__':
         author='Mikhail Trifonov',
         author_email='mikhail.trifonov@corp.mail.ru',
         description='selenium extension for noseapp lib',
+        long_description=open('README.rst').read(),
         include_package_data=True,
         zip_safe=False,
         platforms='any',
         install_requires=[
             'noseapp',
             'selenium==2.44.0',
+        ],
+        classifiers=[
+            'Development Status :: 4 - Beta',
+            'Intended Audience :: Developers',
+            'Operating System :: OS Independent',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 2.7',
+            'Topic :: Software Development :: Testing',
         ],
     )
