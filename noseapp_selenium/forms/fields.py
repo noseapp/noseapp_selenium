@@ -125,9 +125,6 @@ class Input(field_on_base(SimpleFieldInterface)):
         if value is None:
             value = self.value
 
-        if callable(value):
-            value = value()
-
         self.get_web_element().send_keys(*value)
         self._observer.fill_field_handler(self)
 
