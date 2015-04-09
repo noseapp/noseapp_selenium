@@ -4,6 +4,7 @@ import logging
 from functools import wraps
 from urllib2 import URLError
 
+from noseapp.core import ExtensionInstaller
 from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
@@ -68,6 +69,7 @@ class SeleniumEx(object):
     """
 
     name = 'selenium'
+    config_key = 'SELENIUM_EX'
 
     def __init__(
             self,
@@ -89,6 +91,19 @@ class SeleniumEx(object):
                 driver_name,
             ),
         )
+
+    @classmethod
+    def install(cls, app):
+        """
+        Automatic installation from app instance
+
+        :param app: instance of application
+        """
+        config = app.config.get(cls.config_key, {})
+        options = config.pop('OPTIONS', {})
+        installer = ExtensionInstaller(cls, (config, ), options)
+        app.shared_extension(cls=installer)
+        return installer
 
     @property
     def config(self):

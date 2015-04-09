@@ -36,6 +36,8 @@ _BASE_CONFIG = {
     'PHANTOMJS_WEBDRIVER': {},
 
     'OPERA_WEBDRIVER': {},
+
+    'OPTIONS': {},
 }
 
 
@@ -47,6 +49,12 @@ def make_config():
 
 
 class Config(dict):
+
+    def configure(self, **options):
+        """
+        Extension settings configure
+        """
+        self['OPTIONS'].update(options)
 
     def remote_configure(self, options=None, capabilities=None):
         """
