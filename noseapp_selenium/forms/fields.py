@@ -73,6 +73,9 @@ class FormField(object):
         if callable(self.value):
             self.value = self.value()
 
+        if callable(self.invalid_value):
+            self.invalid_value = self.invalid_value()
+
         self.__is_bind = True
 
     @property
