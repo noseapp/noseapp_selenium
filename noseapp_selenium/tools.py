@@ -1,6 +1,10 @@
 # -*- coding: utf8 -*-
 
+import time
+from functools import wraps
+
 from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.common.exceptions import WebDriverException
 
 
 def make_object(web_element):
@@ -54,3 +58,58 @@ def get_driver_from_web_element(web_element):
         return driver
 
     return get_driver_from_web_element(driver)
+
+
+def polling(self, callback=None, timeout=30, sleep=0.01):
+
+    def wrapper(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            t_start = time.time()
+
+            while time.time() <= t_start + timeout:
+                try:
+                    return f(*args, **kwargs)
+                except WebDriverException:
+                    time.sleep(sleep)
+                    continue
+            else:
+                # raise condition
+                return f(*args, **kwargs)
+
+        return wrapped
+
+    if callable(callback):
+        return wrapper(callback)
+
+    return wrapper
+
+
+def re_raise_wd_exception(callback=None, exc_cls=WebDriverException, message=None):
+
+    def wrapper(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except WebDriverException as e:
+                raise exc_cls(
+                    u"""
+                    Re raise web driver exception:
+
+                    * Message: {}
+                    * Original exception class: {}
+                    * Original message: {}
+                    """.format(
+                        message or '',
+                        e.__class__.__name__,
+                        e.message,
+                    ),
+                )
+
+        return wrapped
+
+    if callable(callback):
+        return wrapper(callback)
+
+    return wrapper
