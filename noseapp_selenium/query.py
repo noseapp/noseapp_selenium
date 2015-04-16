@@ -3,7 +3,7 @@
 import logging
 
 from noseapp.utils.common import waiting_for
-from selenium.webdriver.remote.webdriver import WebDriver
+from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
 
@@ -148,32 +148,26 @@ class QueryResult(object):
 
     @property
     def exist(self):
-        if isinstance(self._client, WebDriver):
-            self._client.implicitly_wait(0)
-            restore_implicitly_wait = lambda: self._client.implicitly_wait(
-                self._client.IMPLICITLY_WAIT,
-            )
-        elif isinstance(self._client, WebElement):
+        if isinstance(self._client, WebElement):
             driver = get_driver_from_web_element(self._client)
             driver.implicitly_wait(0)
-            restore_implicitly_wait = lambda: driver.implicitly_wait(
-                driver.IMPLICITLY_WAIT,
-            )
         else:
-            restore_implicitly_wait = lambda: None
+            driver = self._client
+
+        driver.implicitly_wait(0)
 
         try:
             el = self.first()
             if el:
-                restore_implicitly_wait()
+                driver.config.apply_implicitly_wait()
                 return True
-            restore_implicitly_wait()
+            driver.config.apply_implicitly_wait()
             return False
         except WebDriverException:
-            restore_implicitly_wait()
+            driver.config.apply_implicitly_wait()
             return False
         except BaseException:
-            restore_implicitly_wait()
+            driver.config.apply_implicitly_wait()
             raise
 
     @property
@@ -182,11 +176,16 @@ class QueryResult(object):
         return self
 
     def wait(self, timeout=None, sleep=None):
-        return waiting_for(
-            lambda: self.exist,
-            sleep=sleep or DEFAULT_SLEEP,
-            timeout=timeout or DEFAULT_WAIT_TIMEOUT,
-        )
+        try:
+            return waiting_for(
+                lambda: self.exist,
+                sleep=sleep or DEFAULT_SLEEP,
+                timeout=timeout or DEFAULT_WAIT_TIMEOUT,
+            )
+        except TimeoutException:
+            raise TimeoutException(
+                'Could not wait web element with css "{}"'.format(self._css),
+            )
 
     def get(self, index):
         try:

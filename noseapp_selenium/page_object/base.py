@@ -11,15 +11,8 @@ from noseapp_selenium.query import QueryObject
 
 
 def page_element(query_object):
-
     def wrapper(self):
-        if isinstance(self._wrapper, QueryObject):
-            return self._query(
-                self._query.from_object(self._wrapper).first(),
-            ).from_object(query_object).first()
-
-        return self._query.from_object(query_object).first()
-
+        return self.query.from_object(query_object).first()
     return property(wrapper)
 
 
@@ -76,7 +69,7 @@ class PageObject(object):
 
     def __init__(self, driver):
         self._driver = driver
-        self._query = QueryProcessor(self._driver)
+        self.__query = QueryProcessor(driver)
 
         meta = getattr(self, 'Meta', object())
 
@@ -86,10 +79,18 @@ class PageObject(object):
             wait_config = getattr(meta, 'wait_config', WaitConfig())
             self.wait_complete = WaitComplete(
                 self._driver,
-                self._query,
+                self.__query,
                 self.__class__.__name__,
                 wait_config,
             )
+
+    @property
+    def query(self):
+        if isinstance(self._wrapper, QueryObject):
+            return self.__query(
+                self.__query.from_object(self._wrapper).first(),
+            )
+        return self.__query
 
 
 class WaitComplete(object):

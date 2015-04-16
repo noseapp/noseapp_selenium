@@ -9,6 +9,7 @@ from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
+from noseapp_selenium.query import QueryProcessor
 
 
 logger = logging.getLogger(__name__)
@@ -43,24 +44,52 @@ def get_capabilities(driver_name):
         )
 
 
-def apply_settings(f):
+def setup_config(f):
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         driver = f(self, *args, **kwargs)
 
-        if self._implicitly_wait is not None:
-            driver.IMPLICITLY_WAIT = self._implicitly_wait
-            driver.implicitly_wait(self._implicitly_wait)
-        else:
-            driver.IMPLICITLY_WAIT = 0
-
-        if self._maximize_window:
-            driver.maximize_window()
+        driver.config = DriverConfig(
+            driver,
+            implicitly_wait=self._implicitly_wait,
+            maximize_window=self._maximize_window,
+        )
+        driver.config.apply()
 
         return driver
 
     return wrapper
+
+
+class DriverConfig(object):
+
+    def __init__(self, driver,
+                 implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
+                 maximize_window=DEFAULT_MAXIMIZE_WINDOW):
+        self.__driver = driver
+
+        self.IMPLICITLY_WAIT = implicitly_wait
+        self.MAXIMIZE_WINDOW = maximize_window
+
+    def apply(self):
+        self.init_query()
+
+        self.apply_implicitly_wait()
+        self.apply_maximize_window()
+
+    def apply_implicitly_wait(self):
+        if self.IMPLICITLY_WAIT is not None:
+            self.__driver.implicitly_wait(self.IMPLICITLY_WAIT)
+        else:
+            self.__driver.IMPLICITLY_WAIT = 0
+
+    def apply_maximize_window(self):
+        if self.MAXIMIZE_WINDOW:
+            self.__driver.maximize_window()
+
+    def init_query(self):
+        self.__driver.query = QueryProcessor(self.__driver)
 
 
 class SeleniumEx(object):
@@ -109,7 +138,7 @@ class SeleniumEx(object):
     def config(self):
         return self._config
 
-    @apply_settings
+    @setup_config
     def remote(self):
         remote_config = self._config.get('REMOTE_WEBDRIVER')
 
@@ -129,7 +158,7 @@ class SeleniumEx(object):
             **options
         )
 
-    @apply_settings
+    @setup_config
     def ie(self):
         ie_config = self._config.get('IE_WEBDRIVER')
 
@@ -140,7 +169,7 @@ class SeleniumEx(object):
 
         return drivers.IeWebDriver(**ie_config)
 
-    @apply_settings
+    @setup_config
     def chrome(self):
         chrome_config = self._config.get('CHROME_WEBDRIVER')
 
@@ -151,7 +180,7 @@ class SeleniumEx(object):
 
         return drivers.ChromeWebDriver(**chrome_config)
 
-    @apply_settings
+    @setup_config
     def firefox(self):
         firefox_config = self._config.get('FIREFOX_WEBDRIVER', {})
 
@@ -159,7 +188,7 @@ class SeleniumEx(object):
 
         return drivers.FirefoxWebDriver(**firefox_config)
 
-    @apply_settings
+    @setup_config
     def phantom(self):
         phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
 
@@ -170,7 +199,7 @@ class SeleniumEx(object):
 
         return drivers.PhantomJSWebDriver(**phantom_config)
 
-    @apply_settings
+    @setup_config
     def opera(self):
         opera_config = self._config.get('OPERA_WEBDRIVER')
 

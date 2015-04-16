@@ -223,7 +223,8 @@ class FieldsGroup(SimpleFieldInterface):
         self._fill_memo = set()
         self._memento = GroupMemento()
         self._observer = GroupObserver(self)
-        self._query = QueryProcessor(driver)
+
+        self.__query = QueryProcessor(driver)
 
         if parent is not None:
             self._observer.add_parent(parent)
@@ -240,7 +241,11 @@ class FieldsGroup(SimpleFieldInterface):
             'exclude': getattr(meta, 'exclude', tuple()),
         }
 
-        for atr in (a for a in dir(self) if not a.startswith('_')):
+        exclude_atr = (
+            'query',
+        )
+
+        for atr in (a for a in dir(self) if not a.startswith('_') and a not in exclude_atr):
             maybe_field = getattr(self, atr, None)
 
             if isinstance(maybe_field, FormField) or isinstance(maybe_field, GroupContainer):
@@ -271,6 +276,14 @@ class FieldsGroup(SimpleFieldInterface):
     @property
     def weight(self):
         return self._weight
+
+    @property
+    def query(self):
+        wrapper = self.get_wrapper_element()
+
+        if wrapper:
+            return self.__query(wrapper)
+        return self.__query
 
     def submit(self):
         """
@@ -309,5 +322,5 @@ class FieldsGroup(SimpleFieldInterface):
         """
         wrapper = self._settings['wrapper']
         if wrapper:
-            return self._query.from_object(wrapper).first()
+            return self.__query.from_object(wrapper).first()
         return None

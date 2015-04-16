@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from functools import wraps
+
 from selenium.common.exceptions import NoSuchElementException
 
 from noseapp_selenium.tools import make_object
@@ -11,6 +13,29 @@ def selector(**kwargs):
     proxy for tag attributes
     """
     return kwargs
+
+
+def fill_field_handler(f):
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        result = f(self, *args, **kwargs)
+
+        if self._settings.get('remenber', True):
+            self._observer.fill_field_handler(self)
+
+        return result
+    return wrapper
+
+
+def clear_field_handler(f):
+    @wraps(f)
+    def wrapper(self, *args, **kwargs):
+        result = f(self, *args, **kwargs)
+
+        self._observer.clear_field_handler(self)
+
+        return result
+    return wrapper
 
 
 class FieldError(BaseException):
@@ -65,10 +90,10 @@ class FormField(object):
         self.error_mess = error_mess
         self.invalid_value = invalid_value
 
-    def bind(self, form):
-        self._query = form._query
-        self._observer = form._observer
-        self._settings = form._settings
+    def bind(self, group):
+        self._query = group._driver.query
+        self._observer = group._observer
+        self._settings = group._settings
 
         if callable(self.value):
             self.value = self.value()
@@ -88,13 +113,14 @@ class FormField(object):
 
         wrapper = self._settings.get('wrapper', None)
 
-        if wrapper is not None:
-            parent = self._query.from_object(wrapper).first()
-            return self._query(parent).from_object(
-                QueryObject(self.Meta.tag, **self._selector),
-            ).first()
+        if isinstance(wrapper, QueryObject):
+            query = self._query(
+                self._query.from_object(wrapper).first(),
+            )
+        else:
+            query = self._query
 
-        return self._query.from_object(
+        return query.from_object(
             QueryObject(self.Meta.tag, **self._selector),
         ).first()
 
@@ -124,16 +150,16 @@ class Input(field_on_base(SimpleFieldInterface)):
     class Meta:
         tag = 'input'
 
+    @fill_field_handler
     def fill(self, value=None):
         if value is None:
             value = self.value
 
         self.get_web_element().send_keys(*value)
-        self._observer.fill_field_handler(self)
 
+    @clear_field_handler
     def clear(self):
         self.get_web_element().clear()
-        self._observer.clear_field_handler(self)
 
 
 class TextArea(Input):
@@ -147,6 +173,7 @@ class Checkbox(field_on_base(SimpleFieldInterface)):
     class Meta:
         tag = 'input'
 
+    @fill_field_handler
     def fill(self, value=None):
         if value is None:
             value = self.value
@@ -164,15 +191,12 @@ class Checkbox(field_on_base(SimpleFieldInterface)):
         if (value and not current_value) or (not value and current_value):
             el.click()
 
-        self._observer.fill_field_handler(self)
-
+    @clear_field_handler
     def clear(self):
         el = self.get_web_element()
 
         if el.is_selected():
             el.click()
-
-        self._observer.clear_field_handler(self)
 
 
 class RadioButton(Checkbox):
@@ -180,6 +204,7 @@ class RadioButton(Checkbox):
     class Meta:
         tag = 'input'
 
+    @fill_field_handler
     def fill(self, value=None):
         if value is None:
             value = self.value
@@ -192,12 +217,11 @@ class RadioButton(Checkbox):
             el.click()
             changed = True
 
-        self._observer.fill_field_handler(self)
-
         return changed
 
+    @clear_field_handler
     def clear(self):
-        self._observer.clear_field_handler(self)
+        pass
 
 
 class Select(field_on_base(SimpleFieldInterface)):
@@ -205,6 +229,7 @@ class Select(field_on_base(SimpleFieldInterface)):
     class Meta:
         tag = 'select'
 
+    @fill_field_handler
     def fill(self, value=None):
         if value is None:
             value = self.value
@@ -225,7 +250,6 @@ class Select(field_on_base(SimpleFieldInterface)):
                 ),
             )
 
-        self._observer.fill_field_handler(self)
-
+    @clear_field_handler
     def clear(self):
-        self._observer.clear_field_handler(self)
+        pass
