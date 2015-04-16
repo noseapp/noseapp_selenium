@@ -108,8 +108,7 @@ Forms
         first_group = make_field(FirstFieldsGroup, weight=2)
 
         def submit():
-            wrapper_element = self.get_wrapper_element()
-            button = self._query(wrapper_element).input(id='button').first()
+            button = self.query.input(id='button').first()
             button.click()
 
 
