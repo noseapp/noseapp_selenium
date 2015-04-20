@@ -1,10 +1,17 @@
 # -*- coding: utf8 -*-
 
+import time
+from functools import wraps
+
+from noseapp.utils.common import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.common.exceptions import WebDriverException
 
 
 def make_object(web_element):
     """
+    Convert web element to object.
+
     Example:
 
         input = driver.find_element...
@@ -48,9 +55,79 @@ def get_driver_from_web_element(web_element):
     """
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
-    driver = web_element._parent
+    try:
+        driver = web_element._parent
+    except AttributeError:
+        return web_element
 
     if isinstance(driver, WebDriver):
         return driver
 
     return get_driver_from_web_element(driver)
+
+
+def polling(callback=None, timeout=30, sleep=0.01):
+    """
+    Do sleep while wrapped function will be raised
+    exception of WebDriverException class.
+
+    Use timeout param for setting max seconds to waiting.
+    This function will be used like decorator if callback is None.
+    """
+    def wrapper(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            t_start = time.time()
+
+            while time.time() <= t_start + timeout:
+                try:
+                    return f(*args, **kwargs)
+                except WebDriverException:
+                    time.sleep(sleep)
+                    continue
+            else:
+                raise
+
+        return wrapped
+
+    if callable(callback):
+        return wrapper(callback)
+
+    return wrapper
+
+
+class ReRaiseWebDriverException(BaseException):
+    pass
+
+
+def re_raise_wd_exc(callback=None, exc_cls=ReRaiseWebDriverException, message=None):
+    """
+    Except WebDriverException and re raising to custom exception.
+    Also, TimeoutException will be excepting for re raise polling.
+    """
+    def wrapper(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except (TimeoutException, WebDriverException) as e:
+                raise exc_cls(
+                    u"""
+    Re raise web driver exception:
+
+    * Message: {}
+    * Original exception class: {}
+    * Original message: {}
+                    """.format(
+                        message or '',
+                        e.__class__.__name__,
+                        e.message,
+                    ),
+                )
+
+        return wrapped
+
+    if callable(callback):
+        return wrapper(callback)
+
+    return wrapper

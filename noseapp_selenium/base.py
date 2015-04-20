@@ -45,7 +45,9 @@ def get_capabilities(driver_name):
 
 
 def setup_config(f):
-
+    """
+    Setup config to driver and apply settings
+    """
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         driver = f(self, *args, **kwargs)

@@ -14,6 +14,9 @@ class PageIsNotFound(BaseException):
 
 
 class PageRouter(object):
+    """
+    Realization relationships of page object to regexp string.
+    """
 
     __rules = {}
 
@@ -40,7 +43,10 @@ class PageRouter(object):
 
     def get(self, path, wait=True, go_to=True):
         """
-        Get page object instance by path
+        Get page object instance by path.
+
+        Create page instance, go to path,
+        call wait complete method of page object.
 
         :type path: str
         """
@@ -67,10 +73,24 @@ class PageRouter(object):
         return page
 
     def get_no_wait(self, path):
+        """
+        Get method wrapper.
+
+        Get page object instance by rule and
+        exclude calling wait complete method of page object.
+        """
         return self.get(path, wait=False)
 
     def get_page(self, path):
+        """
+        Get method wrapper.
+
+        Get page object instance by rule. Don't go to path.
+        """
         return self.get(path, go_to=False)
 
     def go_to(self, path):
+        """
+        Simple go to path.
+        """
         self._driver.get('{}{}'.format(self._base_path, path))

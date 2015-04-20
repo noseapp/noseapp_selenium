@@ -7,9 +7,74 @@ Installation
     pip install noseapp_selenium
 
 
-=====
-Usage
-=====
+Install extension from app
+--------------------------
+
+config module ::
+
+    from noseapp.ext.selenium import make_config
+
+
+    SELENIUM_EX = make_config()
+
+    SELENIUM_EX.configure(
+        implicitly_wait=30,
+        maximize_window=True,
+    )
+
+    SELENIUM_EX.remote_configure(
+        capabilities={
+            drivers.CHROME: {
+                'version': '41',
+            },
+        },
+        options={
+            'keep_alive': True,
+            'command_executor': 'url to selenium hub',
+        },
+    )
+
+    etc...
+
+
+app module ::
+
+    from noseapp import NoseApp
+    from noseapp.ext.selenium import SeleniumEx
+
+
+    class MyApp(NoseApp):
+
+        def initialize(self):
+            SeleniumEx.install(self)
+
+
+suite ::
+
+    from noseapp import Suite
+    from noseapp import TestCase
+
+
+    suite = Suite(__name__, require=['selenium'])
+
+
+    class MyTestCase(TestCase):
+
+        def setUp(self):
+            self.driver = self.selenium.get_driver()
+
+        def tearDown(self):
+            self.driver.quit()
+
+        def test_go_to(self):
+            self.driver.get('http://google.ru')
+            search_field = self.driver.query.input(id='gs_htif0').first()
+            search_field.send_keys("ok google, let's get testing")
+            self.assertIn('ok google', self.driver.query.get_text())
+
+
+Simple usage
+------------
 
 ::
 
@@ -49,19 +114,16 @@ Create query
 
 ::
 
-    from noseapp.ext.selenium import QueryProcessor
     from noseapp.ext.selenium.query import contains
 
-    query = QueryProcessor(driver)
-
-    search_wrapper = query.div(_class='search-wrap').first()
-    search_field = query(search_wrapper).input(id='search').first()
+    search_wrapper = driver.query.div(_class='search-wrap').first()
+    search_field = driver.query(search_wrapper).input(id='search').first()
     search_field.send_keys(...)
 
-    # query.div(id=contains('hello')).wait()
-    # query.div(id=contains('hello')).exist
-    # query.div(id=contains('hello')).all()
-    # query.div(id=contains('hello')).get(3)
+    # driver.query.div(id=contains('hello')).wait()
+    # driver.query.div(id=contains('hello')).exist
+    # driver.query.div(id=contains('hello')).all()
+    # driver.query.div(id=contains('hello')).get(3)
 
 
 Forms
@@ -149,6 +211,10 @@ Forms
     form.fill()
     form.submit()
 
+    # Query to form wrapper
+
+    form.query.div(...).first()
+
 
 Page Object
 -----------
@@ -180,6 +246,8 @@ Page Object
             return MyForm(self._driver)
 
 
+    # Create relationship
+
     PageRouter.add_rule('/my_page/', MyPage)
 
 
@@ -188,3 +256,7 @@ Page Object
     form = page.get_my_form()
 
     page.element.click()
+
+    # Query to page object wrapper
+
+    page.query.link(...).first()
