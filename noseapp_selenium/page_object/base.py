@@ -11,12 +11,19 @@ from noseapp_selenium.query import QueryObject
 
 
 def page_element(query_object):
+    """
+    Factory for creating query
+    result from query object instance
+    """
     def wrapper(self):
         return self.query.from_object(query_object).first()
     return property(wrapper)
 
 
 class WaitConfig(object):
+    """
+    Configuration for wait complete method
+    """
 
     def __init__(self,
                  objects=None,
@@ -46,6 +53,9 @@ class WaitConfig(object):
 
 
 class PageObjectMeta(type):
+    """
+    Factory for creating page object class
+    """
 
     def __new__(cls, name, bases, dct):
         new_cls = type.__new__(cls, name, bases, dct)
@@ -64,6 +74,9 @@ class PageObjectMeta(type):
 
 
 class PageObject(object):
+    """
+    Base page class
+    """
 
     __metaclass__ = PageObjectMeta
 
@@ -94,6 +107,9 @@ class PageObject(object):
 
 
 class WaitComplete(object):
+    """
+    Waiting for load page
+    """
 
     def __init__(self, driver, query, page_name, config):
         self.config = config

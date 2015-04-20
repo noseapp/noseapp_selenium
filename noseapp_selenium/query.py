@@ -32,6 +32,9 @@ class QueryError(BaseException):
 
 
 def _error_handler(e, client, css):
+    """
+    Extend error message
+    """
     prefix = u' ' if e.message else u''
 
     if isinstance(client, WebElement):
@@ -70,10 +73,17 @@ def _execute(client, css, get_all):
 
 
 def _replace_attribute(atr_name):
+    """
+    Replacing attribute name for
+    excluding conflict with names of globals
+    """
     return REPLACE_ATTRIBUTES.get(atr_name, atr_name).replace('_', '-')
 
 
 def _replace_tag(tag_name):
+    """
+    Replacing tag name for usability
+    """
     return REPLACE_TAGS.get(tag_name, tag_name)
 
 
@@ -90,8 +100,7 @@ def _handler(client, tag):
                 return u'[{}*="{}"]'
             return u'[{}="{}"]'
 
-        map(
-            query.append,
+        query.extend(
             (
                 get_format(val).format(_replace_attribute(atr), val)
                 for atr, val in selector.items()
@@ -104,6 +113,12 @@ def _handler(client, tag):
 
 
 class QueryObject(object):
+    """
+    Structure of css query.
+
+    Use instance of this class with
+    from_object method of QueryProcessor.
+    """
 
     def __init__(self, tag, **selector):
         self.tag = tag
@@ -119,6 +134,9 @@ class QueryObject(object):
 
 
 class _Contains(object):
+    """
+    Marker for use contains inside css query
+    """
 
     def __init__(self, value):
         self.value = value
@@ -127,17 +145,19 @@ class _Contains(object):
         return self.value
 
     def __str__(self):
-        return self.value
+        return str(self.value)
 
     def __unicode__(self):
-        return self.value
+        return unicode(self.value)
 
 
-def contains(value):
-    return _Contains(value)
+contains = _Contains
 
 
 class QueryResult(object):
+    """
+    Execute actions by css query and returning result
+    """
 
     def __init__(self, client, css):
         self._client = client
@@ -148,6 +168,9 @@ class QueryResult(object):
 
     @property
     def exist(self):
+        """
+        Check element exist
+        """
         if isinstance(self._client, WebElement):
             driver = get_driver_from_web_element(self._client)
             driver.implicitly_wait(0)
@@ -176,6 +199,9 @@ class QueryResult(object):
         return self
 
     def wait(self, timeout=None, sleep=None):
+        """
+        Waiting for web element exist
+        """
         try:
             return waiting_for(
                 lambda: self.exist,
@@ -188,6 +214,9 @@ class QueryResult(object):
             )
 
     def get(self, index):
+        """
+        Get web element by index
+        """
         try:
             return _execute(self._client, self._css, True)[index]
         except IndexError as e:
@@ -197,9 +226,15 @@ class QueryResult(object):
             raise
 
     def first(self):
+        """
+        Get first element on page
+        """
         return _execute(self._client, self._css, False)
 
     def all(self):
+        """
+        Get all elements of appropriate query
+        """
         return _execute(self._client, self._css, True)
 
 
@@ -226,6 +261,8 @@ class QueryProcessor(object):
 
     def from_object(self, obj):
         """
+        Creating result from object
+
         :type obj: QueryObject
         """
         if not isinstance(obj, QueryObject):
@@ -234,6 +271,9 @@ class QueryProcessor(object):
         return self.__getattr__(obj.tag)(**obj.selector)
 
     def get_text(self):
+        """
+        Get text from page or web element
+        """
         if isinstance(self._client, WebElement):
             return self._client.text
 
