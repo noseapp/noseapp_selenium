@@ -299,6 +299,18 @@ class FieldsGroup(SimpleFieldInterface):
         self._fill_memo.clear()
         self._observer.reset_memo_handler()
 
+    def update(self, **kwargs):
+        """
+        Update fields values
+        """
+        for field_name, value in kwargs.items():
+            field = getattr(self, field_name, None)
+
+            if isinstance(field, FormField):
+                field.value = value
+            elif isinstance(field, FieldsGroup) and isinstance(value, dict):
+                field.update(**value)
+
     def fill(self, exclude=None):
         exclude = exclude or tuple()
 
