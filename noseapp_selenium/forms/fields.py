@@ -91,7 +91,11 @@ class FormField(object):
         self.invalid_value = invalid_value
 
     def bind(self, group):
-        self._query = group._driver.query
+        try:
+            self._query = group._driver.query
+        except AttributeError:
+            self._query = QueryProcessor(group._driver)
+
         self._observer = group._observer
         self._settings = group._settings
 
