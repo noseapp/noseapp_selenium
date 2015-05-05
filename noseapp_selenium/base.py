@@ -9,6 +9,7 @@ from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
+from noseapp_selenium.tools import PollingObject
 from noseapp_selenium.query import QueryProcessor
 
 
@@ -61,7 +62,7 @@ def setup_config(f):
         )
         driver.config.apply()
 
-        return driver
+        return PollingObject(driver)
 
     return wrapper
 

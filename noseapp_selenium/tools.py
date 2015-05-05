@@ -2,6 +2,7 @@
 
 import time
 from functools import wraps
+from contextlib import contextmanager
 
 from noseapp.utils.common import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -56,7 +57,10 @@ def get_driver_from_web_element(web_element):
     """
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
-    if isinstance(web_element, (WebElement, WebElementDecorator)):
+    if isinstance(web_element, PollingObject):
+        web_element = web_element.orig()
+
+    if isinstance(web_element, WebElement):
         driver = web_element._parent
     else:
         driver = web_element
@@ -72,6 +76,17 @@ def get_driver_from_query(query):
     :param query: instance of QueryProcessor
     """
     return get_driver_from_web_element(query._client)
+
+
+def get_config(client):
+    """
+    Get config from WebDriver instance
+
+    :param client: WebDriver or WebElement
+    """
+    driver = get_driver_from_web_element(client)
+
+    return driver.config
 
 
 def polling(callback=None, timeout=30, sleep=0.01):
@@ -141,35 +156,51 @@ def re_raise_wd_exc(callback=None, exc_cls=ReRaiseWebDriverException, message=No
     return wrapper
 
 
-class WebElementDecorator(object):
+class PollingObject(object):
     """
-    Decorator for WebElement instance
+    Decorator for WebElement or WebDriver instance
     """
 
-    DECORATOR_ID_TO_WEB_ELEMENT = {}  # Cached WebElement instance by decorator instance id
+    def __init__(self, wrapped):
+        self.__dict__['wrapped'] = wrapped
+        self.__dict__['polling'] = True
 
-    def __init__(self, web_element):
-        WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)] = web_element
+    @contextmanager
+    def disable_polling(self):
+        try:
+            self.__dict__['polling'] = False
 
-    def __del__(self):
-        del WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+            wrapped = self.__dict__['wrapped']
+
+            if hasattr(wrapped, 'disable_polling'):
+                with wrapped.disable_polling():
+                    yield
+            else:
+                yield
+        except:
+            self.__dict__['polling'] = True
+            raise
+
+    def orig(self):
+        return self.__dict__['wrapped']
 
     def __getattr__(self, item):
-        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+        wrapped = self.__dict__['wrapped']
 
-        driver = get_driver_from_web_element(web_element)
+        config = get_config(wrapped)
+        allow_polling = config.POLLING_TIMEOUT and self.__dict__['polling']
 
-        atr = getattr(web_element, item)
+        atr = getattr(wrapped, item)
 
-        if callable(atr) and driver.config.POLLING_TIMEOUT:
-            return polling(callback=atr, timeout=driver.config.POLLING_TIMEOUT)
+        if callable(atr) and allow_polling:
+            return polling(callback=atr, timeout=config.POLLING_TIMEOUT)
 
         return atr
 
     def __setattr__(self, key, value):
-        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
-        return setattr(web_element, key, value)
+        wrapped = self.__dict__['wrapped']
+        return setattr(wrapped, key, value)
 
     def __repr__(self):
-        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
-        return repr(web_element)
+        wrapped = self.__dict__['wrapped']
+        return repr(wrapped)
