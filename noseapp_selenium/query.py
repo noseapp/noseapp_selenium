@@ -7,6 +7,7 @@ from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
 
+from noseapp_selenium.tools import WebElementDecorator
 from noseapp_selenium.tools import get_driver_from_web_element
 
 
@@ -64,12 +65,30 @@ def _execute(client, css, get_all):
     }
 
     try:
-        return css_executor[get_all](css)
+        result = css_executor[get_all](css)
+
+        if isinstance(result, WebElement):
+            return WebElementDecorator(result)
+        elif isinstance(result, list):
+            return [WebElementDecorator(w) for w in result]
+
+        return result
+
     except WebDriverException as e:
         _error_handler(e, client, css)
         raise
     except KeyError:
         raise QueryError('get_all param must be bool type only')
+
+
+def _apply_polling(result):
+    """
+    Apply polling by driver config
+    """
+    driver = get_driver_from_web_element(result._client)
+
+    if driver.config.POLLING_TIMEOUT:
+        result.wait(driver.config.POLLING_TIMEOUT)
 
 
 def _replace_attribute(atr_name):
@@ -171,16 +190,15 @@ class QueryResult(object):
         """
         Check element exist
         """
-        if isinstance(self._client, WebElement):
+        if isinstance(self._client, (WebElement, WebElementDecorator)):
             driver = get_driver_from_web_element(self._client)
-            driver.implicitly_wait(0)
         else:
             driver = self._client
 
         driver.implicitly_wait(0)
 
         try:
-            el = self.first()
+            el = _execute(self._client, self._css, False)
             if el:
                 driver.config.apply_implicitly_wait()
                 return True
@@ -217,6 +235,8 @@ class QueryResult(object):
         """
         Get web element by index
         """
+        _apply_polling(self)
+
         try:
             return _execute(self._client, self._css, True)[index]
         except IndexError as e:
@@ -229,12 +249,16 @@ class QueryResult(object):
         """
         Get first element on page
         """
+        _apply_polling(self)
+
         return _execute(self._client, self._css, False)
 
     def all(self):
         """
         Get all elements of appropriate query
         """
+        _apply_polling(self)
+
         return _execute(self._client, self._css, True)
 
 

@@ -4,8 +4,10 @@ from functools import wraps
 
 from selenium.common.exceptions import NoSuchElementException
 
+from noseapp_selenium.tools import polling
 from noseapp_selenium.tools import make_object
 from noseapp_selenium.query import QueryObject
+from noseapp_selenium.query import QueryProcessor
 
 
 def selector(**kwargs):
@@ -91,7 +93,11 @@ class FormField(object):
         self.invalid_value = invalid_value
 
     def bind(self, group):
-        self._query = group._driver.query
+        try:
+            self._query = group._driver.query
+        except AttributeError:
+            self._query = QueryProcessor(group._driver)
+
         self._observer = group._observer
         self._settings = group._settings
 
