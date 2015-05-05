@@ -7,7 +7,7 @@ from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
 
-from noseapp_selenium.tools import WebElementDecorator
+from noseapp_selenium.tools import PollingObject
 from noseapp_selenium.tools import get_driver_from_web_element
 
 
@@ -53,24 +53,30 @@ def _error_handler(e, client, css):
         )
 
 
-def _execute(client, css, get_all):
+def _execute(client, css, get_all=False, allow_polling=True):
     """
     Execute css query
     """
     logger.debug(u'CSS: {} Get all: {}'.format(css, 'Yes' if get_all else 'No'))
 
-    css_executor = {
-        True: client.find_elements_by_css_selector,
-        False: client.find_element_by_css_selector,
+    css_executor = lambda cli: {
+        True: cli.find_elements_by_css_selector,
+        False: cli.find_element_by_css_selector,
     }
 
     try:
-        result = css_executor[get_all](css)
+        if allow_polling:
+            result = css_executor(client)[get_all](css)
+        elif hasattr(client, 'disable_polling'):
+            with client.disable_polling():
+                result = css_executor(client)[get_all](css)
+        else:
+            result = css_executor(client)[get_all](css)
 
         if isinstance(result, WebElement):
-            return WebElementDecorator(result)
+            return PollingObject(result)
         elif isinstance(result, list):
-            return [WebElementDecorator(w) for w in result]
+            return [PollingObject(we) for we in result]
 
         return result
 
@@ -79,16 +85,6 @@ def _execute(client, css, get_all):
         raise
     except KeyError:
         raise QueryError('get_all param must be bool type only')
-
-
-def _apply_polling(result):
-    """
-    Apply polling by driver config
-    """
-    driver = get_driver_from_web_element(result._client)
-
-    if driver.config.POLLING_TIMEOUT:
-        result.wait(driver.config.POLLING_TIMEOUT)
 
 
 def _replace_attribute(atr_name):
@@ -190,15 +186,12 @@ class QueryResult(object):
         """
         Check element exist
         """
-        if isinstance(self._client, (WebElement, WebElementDecorator)):
-            driver = get_driver_from_web_element(self._client)
-        else:
-            driver = self._client
-
+        driver = get_driver_from_web_element(self._client)
         driver.implicitly_wait(0)
 
         try:
-            el = _execute(self._client, self._css, False)
+            el = _execute(self._client, self._css, allow_polling=False)
+
             if el:
                 driver.config.apply_implicitly_wait()
                 return True
@@ -235,10 +228,8 @@ class QueryResult(object):
         """
         Get web element by index
         """
-        _apply_polling(self)
-
         try:
-            return _execute(self._client, self._css, True)[index]
+            return _execute(self._client, self._css, get_all=True)[index]
         except IndexError as e:
             e.message = 'Result does not have element with index "{}". Query: "{}".'.format(
                 index, self._css,
@@ -249,17 +240,13 @@ class QueryResult(object):
         """
         Get first element on page
         """
-        _apply_polling(self)
-
-        return _execute(self._client, self._css, False)
+        return _execute(self._client, self._css)
 
     def all(self):
         """
         Get all elements of appropriate query
         """
-        _apply_polling(self)
-
-        return _execute(self._client, self._css, True)
+        return _execute(self._client, self._css, get_all=True)
 
 
 class QueryProcessor(object):
