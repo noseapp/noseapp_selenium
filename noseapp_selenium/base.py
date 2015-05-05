@@ -25,6 +25,7 @@ _DRIVER_TO_CAPABILITIES = {
 
 DEFAULT_IMPLICITLY_WAIT = 30
 DEFAULT_MAXIMIZE_WINDOW = True
+DEFAULT_POLLING_TIMEOUT = None
 DEFAULT_DRIVER = drivers.CHROME
 
 GET_DRIVER_TIMEOUT = 10
@@ -56,6 +57,7 @@ def setup_config(f):
             driver,
             implicitly_wait=self._implicitly_wait,
             maximize_window=self._maximize_window,
+            polling_timeout=self._polling_timeout,
         )
         driver.config.apply()
 
@@ -68,11 +70,13 @@ class DriverConfig(object):
 
     def __init__(self, driver,
                  implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
-                 maximize_window=DEFAULT_MAXIMIZE_WINDOW):
+                 maximize_window=DEFAULT_MAXIMIZE_WINDOW,
+                 polling_timeout=DEFAULT_POLLING_TIMEOUT):
         self.__driver = driver
 
         self.IMPLICITLY_WAIT = implicitly_wait
         self.MAXIMIZE_WINDOW = maximize_window
+        self.POLLING_TIMEOUT = polling_timeout
 
     def apply(self):
         self.init_query()
@@ -108,12 +112,14 @@ class SeleniumEx(object):
             use_remote=False,
             driver_name=DEFAULT_DRIVER,
             maximize_window=DEFAULT_MAXIMIZE_WINDOW,
-            implicitly_wait=DEFAULT_IMPLICITLY_WAIT):
+            implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
+            polling_timeout=DEFAULT_POLLING_TIMEOUT):
         self._config = config
         self._use_remote = use_remote
         self._driver_name = driver_name.lower()
         self._maximize_window = maximize_window
         self._implicitly_wait = implicitly_wait
+        self._polling_timeout= polling_timeout
 
         logger.debug(
             'Selenium-EX initialize. Config: {}, Use Remote: {}, Driver name: {}'.format(

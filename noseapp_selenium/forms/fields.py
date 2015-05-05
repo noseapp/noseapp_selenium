@@ -4,8 +4,10 @@ from functools import wraps
 
 from selenium.common.exceptions import NoSuchElementException
 
+from noseapp_selenium.tools import polling
 from noseapp_selenium.tools import make_object
 from noseapp_selenium.query import QueryObject
+from noseapp_selenium.query import QueryProcessor
 
 
 def selector(**kwargs):

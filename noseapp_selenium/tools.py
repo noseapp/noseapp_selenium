@@ -6,6 +6,7 @@ from functools import wraps
 from noseapp.utils.common import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.remote.webelement import WebElement
 
 
 def make_object(web_element):
@@ -55,15 +56,22 @@ def get_driver_from_web_element(web_element):
     """
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
-    try:
+    if isinstance(web_element, (WebElement, WebElementDecorator)):
         driver = web_element._parent
-    except AttributeError:
-        return web_element
+    else:
+        driver = web_element
 
     if isinstance(driver, WebDriver):
         return driver
 
     return get_driver_from_web_element(driver)
+
+
+def get_driver_from_query(query):
+    """
+    :param query: instance of QueryProcessor
+    """
+    return get_driver_from_web_element(query._client)
 
 
 def polling(callback=None, timeout=30, sleep=0.01):
@@ -90,7 +98,7 @@ def polling(callback=None, timeout=30, sleep=0.01):
 
         return wrapped
 
-    if callable(callback):
+    if callback is not None:
         return wrapper(callback)
 
     return wrapper
@@ -131,3 +139,37 @@ def re_raise_wd_exc(callback=None, exc_cls=ReRaiseWebDriverException, message=No
         return wrapper(callback)
 
     return wrapper
+
+
+class WebElementDecorator(object):
+    """
+    Decorator for WebElement instance
+    """
+
+    DECORATOR_ID_TO_WEB_ELEMENT = {}  # Cached WebElement instance by decorator instance id
+
+    def __init__(self, web_element):
+        WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)] = web_element
+
+    def __del__(self):
+        del WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+
+    def __getattr__(self, item):
+        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+
+        driver = get_driver_from_web_element(web_element)
+
+        atr = getattr(web_element, item)
+
+        if callable(atr) and driver.config.POLLING_TIMEOUT:
+            return polling(callback=atr, timeout=driver.config.POLLING_TIMEOUT)
+
+        return atr
+
+    def __setattr__(self, key, value):
+        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+        return setattr(web_element, key, value)
+
+    def __repr__(self):
+        web_element = WebElementDecorator.DECORATOR_ID_TO_WEB_ELEMENT[id(self)]
+        return repr(web_element)
