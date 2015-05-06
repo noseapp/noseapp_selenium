@@ -74,7 +74,7 @@ def get_driver_from_query(query):
     """
     :param query: instance of QueryProcessor
     """
-    return get_driver_from_web_element(query._client)
+    return get_driver_from_web_element(query.client)
 
 
 def get_config(client):

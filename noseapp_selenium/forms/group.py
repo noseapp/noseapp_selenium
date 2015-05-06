@@ -3,11 +3,8 @@
 from copy import deepcopy
 from contextlib import contextmanager
 
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-
 from noseapp_selenium import QueryProcessor
-from noseapp_selenium.proxy import  ProxyObject
+from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.forms.fields import FormField
 from noseapp_selenium.forms.iterators import FieldsIterator
 from noseapp_selenium.forms.fields import SimpleFieldInterface
@@ -223,10 +220,7 @@ class FieldsGroup(SimpleFieldInterface):
     def __init__(self, driver, weight=None, name=None, parent=None):
         self._fields = []
 
-        if isinstance(driver, (WebDriver, WebElement)):
-            driver = ProxyObject(driver)
-
-        self._driver = driver
+        self._driver = to_proxy_object(driver)
         self._weight = weight
         self._fill_memo = set()
         self._memento = GroupMemento()

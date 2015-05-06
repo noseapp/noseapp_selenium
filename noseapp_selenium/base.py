@@ -9,8 +9,8 @@ from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
-from noseapp_selenium.proxy import ProxyObject
 from noseapp_selenium.query import QueryProcessor
+from noseapp_selenium.proxy import to_proxy_object
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def setup_config(f):
         )
         driver.config.apply()
 
-        return ProxyObject(driver)
+        return to_proxy_object(driver)
 
     return wrapper
 

@@ -3,6 +3,7 @@
 from types import MethodType
 from contextlib import contextmanager
 
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from noseapp_selenium.tools import polling
@@ -31,6 +32,16 @@ def factory(f):
         return result
 
     return wrapper
+
+
+def to_proxy_object(obj):
+    """
+    Convert instance to ProxyObject
+    """
+    if isinstance(obj, (WebElement, WebDriver)):
+        return ProxyObject(obj)
+
+    return obj
 
 
 class ProxyObject(object):
