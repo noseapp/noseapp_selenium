@@ -5,10 +5,10 @@ import logging
 from noseapp.utils.common import waiting_for
 from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from noseapp_selenium.proxy import ProxyObject
+from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.tools import get_driver_from_web_element
 
 
@@ -39,7 +39,7 @@ def _error_handler(e, client, css):
     """
     prefix = u' ' if e.message else u''
 
-    if isinstance(client, WebElement):
+    if isinstance(client.orig(), WebElement):
         e.message += u'{}QueryProcessor(From: {}, CSS: {})\n\n--\nSEARCH AREA: {}\n--\n'.format(
             prefix,
             repr(client),
@@ -258,16 +258,17 @@ class QueryProcessor(object):
     """
 
     def __init__(self, client):
-        if isinstance(client, (WebElement, WebDriver)):
-            client = ProxyObject(client)
-
-        self._client = client
+        self._client = to_proxy_object(client)
 
     def __getattr__(self, item):
         return _handler(self._client, item)
 
     def __call__(self, client):
         return self.__class__(client)
+
+    @property
+    def client(self):
+        return self._client
 
     def from_object(self, obj):
         """
