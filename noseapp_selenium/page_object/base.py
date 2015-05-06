@@ -5,9 +5,12 @@ from Queue import Queue
 
 from noseapp.utils.common import waiting_for
 from noseapp.utils.common import TimeoutException
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
 
 from noseapp_selenium import QueryProcessor
 from noseapp_selenium.query import QueryObject
+from noseapp_selenium.proxy import ProxyObject
 
 
 def page_element(query_object):
@@ -81,6 +84,9 @@ class PageObject(object):
     __metaclass__ = PageObjectMeta
 
     def __init__(self, driver):
+        if isinstance(driver, (WebDriver, WebElement)):
+            driver = ProxyObject(driver)
+
         self._driver = driver
         self.__query = QueryProcessor(driver)
 

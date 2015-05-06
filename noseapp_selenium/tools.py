@@ -2,7 +2,6 @@
 
 import time
 from functools import wraps
-from contextlib import contextmanager
 
 from noseapp.utils.common import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -57,7 +56,7 @@ def get_driver_from_web_element(web_element):
     """
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
-    if isinstance(web_element, PollingObject):
+    if hasattr(web_element, 'orig'):
         web_element = web_element.orig()
 
     if isinstance(web_element, WebElement):
@@ -154,53 +153,3 @@ def re_raise_wd_exc(callback=None, exc_cls=ReRaiseWebDriverException, message=No
         return wrapper(callback)
 
     return wrapper
-
-
-class PollingObject(object):
-    """
-    Decorator for WebElement or WebDriver instance
-    """
-
-    def __init__(self, wrapped):
-        self.__dict__['wrapped'] = wrapped
-        self.__dict__['polling'] = True
-
-    @contextmanager
-    def disable_polling(self):
-        try:
-            self.__dict__['polling'] = False
-
-            wrapped = self.__dict__['wrapped']
-
-            if hasattr(wrapped, 'disable_polling'):
-                with wrapped.disable_polling():
-                    yield
-            else:
-                yield
-        except:
-            self.__dict__['polling'] = True
-            raise
-
-    def orig(self):
-        return self.__dict__['wrapped']
-
-    def __getattr__(self, item):
-        wrapped = self.__dict__['wrapped']
-
-        config = get_config(wrapped)
-        allow_polling = config.POLLING_TIMEOUT and self.__dict__['polling']
-
-        atr = getattr(wrapped, item)
-
-        if callable(atr) and allow_polling:
-            return polling(callback=atr, timeout=config.POLLING_TIMEOUT)
-
-        return atr
-
-    def __setattr__(self, key, value):
-        wrapped = self.__dict__['wrapped']
-        return setattr(wrapped, key, value)
-
-    def __repr__(self):
-        wrapped = self.__dict__['wrapped']
-        return repr(wrapped)
