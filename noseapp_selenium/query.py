@@ -5,9 +5,10 @@ import logging
 from noseapp.utils.common import waiting_for
 from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
-from noseapp_selenium.tools import PollingObject
+from noseapp_selenium.proxy import ProxyObject
 from noseapp_selenium.tools import get_driver_from_web_element
 
 
@@ -67,16 +68,11 @@ def _execute(client, css, get_all=False, allow_polling=True):
     try:
         if allow_polling:
             result = css_executor(client)[get_all](css)
-        elif hasattr(client, 'disable_polling'):
+        elif isinstance(client, ProxyObject):
             with client.disable_polling():
                 result = css_executor(client)[get_all](css)
         else:
             result = css_executor(client)[get_all](css)
-
-        if isinstance(result, WebElement):
-            return PollingObject(result)
-        elif isinstance(result, list):
-            return [PollingObject(we) for we in result]
 
         return result
 
@@ -262,6 +258,9 @@ class QueryProcessor(object):
     """
 
     def __init__(self, client):
+        if isinstance(client, (WebElement, WebDriver)):
+            client = ProxyObject(client)
+
         self._client = client
 
     def __getattr__(self, item):
@@ -285,7 +284,7 @@ class QueryProcessor(object):
         """
         Get text from page or web element
         """
-        if isinstance(self._client, WebElement):
+        if isinstance(self._client.orig(), WebElement):
             return self._client.text
 
         return self._client.find_element_by_tag_name('body').text
