@@ -198,7 +198,7 @@ class SeleniumEx(object):
         return drivers.FirefoxWebDriver(**firefox_config)
 
     @setup_config
-    def phantom(self):
+    def phantomjs(self):
         phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
 
         if not phantom_config:
