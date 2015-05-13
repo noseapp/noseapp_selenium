@@ -3,9 +3,9 @@
 from copy import deepcopy
 from contextlib import contextmanager
 
-from noseapp_selenium import QueryProcessor
 from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.forms.fields import FormField
+from noseapp_selenium.tools import get_query_from_driver
 from noseapp_selenium.forms.iterators import FieldsIterator
 from noseapp_selenium.forms.fields import SimpleFieldInterface
 from noseapp_selenium.forms.iterators import RequiredFieldsIterator
@@ -226,8 +226,6 @@ class FieldsGroup(SimpleFieldInterface):
         self._memento = GroupMemento()
         self._observer = GroupObserver(self)
 
-        self.__query = QueryProcessor(driver)
-
         if parent is not None:
             self._observer.add_parent(parent)
 
@@ -281,11 +279,10 @@ class FieldsGroup(SimpleFieldInterface):
 
     @property
     def query(self):
-        wrapper = self.get_wrapper_element()
-
-        if wrapper:
-            return self.__query(wrapper)
-        return self.__query
+        return get_query_from_driver(
+            self._driver,
+            wrapper=self._settings['wrapper'],
+        )
 
     def submit(self):
         """
@@ -336,5 +333,5 @@ class FieldsGroup(SimpleFieldInterface):
         """
         wrapper = self._settings['wrapper']
         if wrapper:
-            return self.__query.from_object(wrapper).first()
+            return self._driver.query.from_object(wrapper).first()
         return None

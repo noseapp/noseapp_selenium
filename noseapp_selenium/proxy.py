@@ -7,10 +7,10 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from noseapp_selenium.tools import polling
-from noseapp_selenium.tools import get_config
+from noseapp_selenium.query.processor import QueryProcessor
 
 
-def factory(f):
+def factory_method(f, config):
     """
     Factory for create WebElement instance
     """
@@ -18,13 +18,13 @@ def factory(f):
         result = f(*args, **kwargs)
 
         if isinstance(result, WebElement):
-            return ProxyObject(result)
+            return ProxyObject(result, config=config)
 
         if isinstance(result, list):
             we_list = []
             for obj in result:
                 if isinstance(obj, WebElement):
-                    we_list.append(ProxyObject(obj))
+                    we_list.append(ProxyObject(obj, config=config))
                 else:
                     return result
             return we_list
@@ -34,12 +34,12 @@ def factory(f):
     return wrapper
 
 
-def to_proxy_object(obj):
+def to_proxy_object(obj, **kw):
     """
     Convert instance to ProxyObject
     """
     if isinstance(obj, (WebElement, WebDriver)):
-        return ProxyObject(obj)
+        return ProxyObject(obj, **kw)
 
     return obj
 
@@ -49,10 +49,12 @@ class ProxyObject(object):
     Proxy for WebElement or WebDriver instance
     """
 
-    def __init__(self, wrapped):
+    def __init__(self, wrapped, config=None):
+        wrapped.query = QueryProcessor(self)
+
         self.__dict__['polling'] = True
         self.__dict__['wrapped'] = wrapped
-        self.__dict__['config'] = get_config(wrapped)
+        self.__dict__['config'] = config or wrapped.config
 
     @contextmanager
     def disable_polling(self):
@@ -85,9 +87,12 @@ class ProxyObject(object):
 
         if callable(attr) and type(attr) == MethodType:
             if allow_polling:
-                return polling(callback=factory(attr), timeout=config.POLLING_TIMEOUT)
+                return polling(
+                    callback=factory_method(attr, config),
+                    timeout=config.POLLING_TIMEOUT,
+                )
 
-            return factory(attr)
+            return factory_method(attr, config)
 
         return attr
 

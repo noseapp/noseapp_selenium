@@ -9,7 +9,6 @@ from noseapp.utils.common import waiting_for
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
-from noseapp_selenium.query import QueryProcessor
 from noseapp_selenium.proxy import to_proxy_object
 
 
@@ -80,8 +79,6 @@ class DriverConfig(object):
         self.POLLING_TIMEOUT = polling_timeout
 
     def apply(self):
-        self.init_query()
-
         self.apply_implicitly_wait()
         self.apply_maximize_window()
 
@@ -91,12 +88,12 @@ class DriverConfig(object):
         else:
             self.__driver.IMPLICITLY_WAIT = 0
 
+    def implicitly_wait(self, value):
+        self.__driver.implicitly_wait(value)
+
     def apply_maximize_window(self):
         if self.MAXIMIZE_WINDOW:
             self.__driver.maximize_window()
-
-    def init_query(self):
-        self.__driver.query = QueryProcessor(self.__driver)
 
 
 class SeleniumEx(object):

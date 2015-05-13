@@ -4,9 +4,7 @@ import time
 from functools import wraps
 
 from noseapp.utils.common import TimeoutException
-from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.remote.webelement import WebElement
 
 
 def make_object(web_element):
@@ -50,42 +48,6 @@ def make_object(web_element):
             )
 
     return WebElementToObject(web_element)
-
-
-def get_driver_from_web_element(web_element):
-    """
-    :type web_element: selenium.webdriver.remote.webdriver.WebElement
-    """
-    if hasattr(web_element, 'orig'):
-        web_element = web_element.orig()
-
-    if isinstance(web_element, WebElement):
-        driver = web_element._parent
-    else:
-        driver = web_element
-
-    if isinstance(driver, WebDriver):
-        return driver
-
-    return get_driver_from_web_element(driver)
-
-
-def get_driver_from_query(query):
-    """
-    :param query: instance of QueryProcessor
-    """
-    return get_driver_from_web_element(query.client)
-
-
-def get_config(client):
-    """
-    Get config from WebDriver instance
-
-    :param client: WebDriver or WebElement
-    """
-    driver = get_driver_from_web_element(client)
-
-    return driver.config
 
 
 def polling(callback=None, timeout=30, sleep=0.01):
@@ -153,3 +115,19 @@ def re_raise_wd_exc(callback=None, exc_cls=ReRaiseWebDriverException, message=No
         return wrapper(callback)
 
     return wrapper
+
+
+def get_query_from_driver(driver, wrapper=None):
+    """
+    Return QueryProcessor instance from driver.
+    If wrapper is not None, at wrapper will be merged.
+
+    :param driver: ProxyObject
+    :param wrapper: QueryObject
+    """
+    if wrapper:
+        return driver.query.from_object(
+            wrapper,
+        ).first().query
+
+    return driver.query
