@@ -6,9 +6,9 @@ from Queue import Queue
 from noseapp.utils.common import waiting_for
 from noseapp.utils.common import TimeoutException
 
-from noseapp_selenium import QueryProcessor
 from noseapp_selenium.query import QueryObject
 from noseapp_selenium.proxy import to_proxy_object
+from noseapp_selenium.tools import get_query_from_driver
 
 
 def page_element(query_object):
@@ -83,7 +83,6 @@ class PageObject(object):
 
     def __init__(self, driver):
         self._driver = to_proxy_object(driver)
-        self.__query = QueryProcessor(driver)
 
         meta = getattr(self, 'Meta', object())
 
@@ -93,18 +92,17 @@ class PageObject(object):
             wait_config = getattr(meta, 'wait_config', WaitConfig())
             self.wait_complete = WaitComplete(
                 self._driver,
-                self.__query,
+                self._wrapper,
                 self.__class__.__name__,
                 wait_config,
             )
 
     @property
     def query(self):
-        if isinstance(self._wrapper, QueryObject):
-            return self.__query(
-                self.__query.from_object(self._wrapper).first(),
-            )
-        return self.__query
+        return get_query_from_driver(
+            self._driver,
+            wrapper=self._wrapper,
+        )
 
 
 class WaitComplete(object):
@@ -112,11 +110,11 @@ class WaitComplete(object):
     Waiting for load page
     """
 
-    def __init__(self, driver, query, page_name, config):
+    def __init__(self, driver, wrapper, page_name, config):
         self.config = config
 
-        self.__query = query
         self.__driver = driver
+        self.__wrapper = wrapper
         self.__page_name = page_name
 
     def __call__(self):
@@ -148,10 +146,15 @@ class WaitComplete(object):
         map(queue.put_nowait, self.config.objects)
         t_start = time.time()
 
+        query = get_query_from_driver(
+            self.__driver,
+            wrapper=self.__wrapper,
+        )
+
         while (time.time() <= t_start + self.config.timeout) or (not queue.empty()):
             obj = queue.get()
 
-            if not self.__query.from_object(obj).exist:
+            if not query.from_object(obj).exist:
                 queue.put(obj)
         else:
             if not queue.empty():
@@ -169,10 +172,15 @@ class WaitComplete(object):
         map(queue.put_nowait, self.config.objects)
         t_start = time.time()
 
+        query = get_query_from_driver(
+            self.__driver,
+            wrapper=self.__wrapper,
+        )
+
         while time.time() <= t_start + self.config.timeout:
             obj = queue.get()
 
-            if self.__query.from_object(obj).exist:
+            if query.from_object(obj).exist:
                 break
 
             queue.put(obj)

@@ -6,7 +6,7 @@ from selenium.common.exceptions import NoSuchElementException
 
 from noseapp_selenium.tools import make_object
 from noseapp_selenium.query import QueryObject
-from noseapp_selenium.query import QueryProcessor
+from noseapp_selenium.tools import get_query_from_driver
 
 
 def selector(**kwargs):
@@ -21,7 +21,7 @@ def fill_field_handler(f):
     def wrapper(self, *args, **kwargs):
         result = f(self, *args, **kwargs)
 
-        if self._settings.get('remenber', True):
+        if self._settings.get('remember', True):
             self._observer.fill_field_handler(self)
 
         return result
@@ -80,7 +80,6 @@ class FormField(object):
 
         self.__is_bind = False
 
-        self._query = None
         self._settings = {}
         self._observer = None
         self._weight = weight
@@ -92,11 +91,7 @@ class FormField(object):
         self.invalid_value = invalid_value
 
     def bind(self, group):
-        try:
-            self._query = group._driver.query
-        except AttributeError:
-            self._query = QueryProcessor(group._driver)
-
+        self._driver = group._driver
         self._observer = group._observer
         self._settings = group._settings
 
@@ -116,14 +111,10 @@ class FormField(object):
         if not self.__is_bind:
             raise FieldError('Field is not binding to group')
 
-        wrapper = self._settings.get('wrapper', None)
-
-        if isinstance(wrapper, QueryObject):
-            query = self._query(
-                self._query.from_object(wrapper).first(),
-            )
-        else:
-            query = self._query
+        query = get_query_from_driver(
+            self._driver,
+            wrapper=self._settings['wrapper'],
+        )
 
         return query.from_object(
             QueryObject(self.Meta.tag, **self._selector),
