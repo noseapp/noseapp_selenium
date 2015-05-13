@@ -6,6 +6,7 @@ from urllib2 import URLError
 
 from noseapp.core import ExtensionInstaller
 from noseapp.utils.common import waiting_for
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
@@ -236,7 +237,7 @@ class SeleniumEx(object):
         def get_driver(func):
             try:
                 return func()
-            except URLError:
+            except (URLError, WebDriverException):
                 return None
 
         if self._use_remote:
