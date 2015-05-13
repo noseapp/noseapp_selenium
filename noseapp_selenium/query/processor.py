@@ -2,7 +2,6 @@
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.query.base import QueryObject
 from noseapp_selenium.query.handler import make_result
 
@@ -20,7 +19,7 @@ class QueryProcessor(object):
     """
 
     def __init__(self, client):
-        self._client = to_proxy_object(client)
+        self._client = client
 
     def __getattr__(self, item):
         return make_result(self._client, item)
