@@ -11,6 +11,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from noseapp_selenium import drivers
 from noseapp_selenium.proxy import to_proxy_object
+from noseapp_selenium.page_object.router import PageRouter
 
 
 logger = logging.getLogger(__name__)
@@ -129,16 +130,23 @@ class SeleniumEx(object):
         )
 
     @classmethod
-    def install(cls, app):
+    def install(cls, app, url_rule_to_page=None):
         """
         Automatic installation from app instance
 
         :param app: instance of application
+        :param url_rule_to_page: relationships of url rules to page class
+        :type url_rule_to_page: dict
         """
         config = app.config.get(cls.config_key, {})
         options = config.pop('OPTIONS', {})
         installer = ExtensionInstaller(cls, (config, ), options)
         app.shared_extension(cls=installer)
+
+        if isinstance(url_rule_to_page, dict):
+            for rule, page_cls in url_rule_to_page.items():
+                PageRouter.add_rule(rule, page_cls)
+
         return installer
 
     @property
