@@ -7,7 +7,7 @@ from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 
 
-def make_object(web_element):
+def make_object(web_element, allow_raise=True):
     """
     Convert web element to object.
 
@@ -22,20 +22,24 @@ def make_object(web_element):
     # TODO: __setattr__
     class WebElementToObject(object):
 
-        def __init__(self, web_element):
+        def __init__(self, web_element, allow_raise):
             self.__web_element = web_element
+            self.__allow_raise = allow_raise
 
         @property
         def css(self):
             return WebElementCssToObject(self.__web_element)
 
         def __getattr__(self, item):
-            atr = self.__web_element.get_attribute(item)
+            atr = self.__web_element.get_attribute(
+                item.replace('_', '-'),
+            )
 
             if atr:
                 return atr
 
-            raise AttributeError('{} "{}"'.format(repr(self.__web_element), item))
+            if allow_raise:
+                raise AttributeError('{} "{}"'.format(repr(self.__web_element), item))
 
     class WebElementCssToObject(object):
 
@@ -47,7 +51,7 @@ def make_object(web_element):
                 item.replace('_', '-'),
             )
 
-    return WebElementToObject(web_element)
+    return WebElementToObject(web_element, allow_raise)
 
 
 def polling(callback=None, timeout=30, sleep=0.01):
