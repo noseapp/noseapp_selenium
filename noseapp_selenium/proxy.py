@@ -7,6 +7,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
 from noseapp_selenium.tools import polling
+from noseapp_selenium.tools import make_object
 from noseapp_selenium.query.processor import QueryProcessor
 
 
@@ -76,6 +77,10 @@ class ProxyObject(object):
 
     def orig(self):
         return self.__dict__['wrapped']
+
+    @property
+    def obj(self):
+        return make_object(self.__dict__['wrapped'], allow_raise=False)
 
     def __getattr__(self, item):
         wrapped = self.__dict__['wrapped']

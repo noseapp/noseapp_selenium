@@ -4,7 +4,6 @@ from functools import wraps
 
 from selenium.common.exceptions import NoSuchElementException
 
-from noseapp_selenium.tools import make_object
 from noseapp_selenium.query import QueryObject
 from noseapp_selenium.tools import get_query_from_driver
 
@@ -122,7 +121,7 @@ class FormField(object):
 
     @property
     def obj(self):
-        return make_object(self.get_web_element())
+        return self.get_web_element().obj
 
 
 def field_on_base(*interfaces):
