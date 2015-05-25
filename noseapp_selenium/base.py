@@ -25,9 +25,10 @@ _DRIVER_TO_CAPABILITIES = {
     drivers.IE: DesiredCapabilities.INTERNETEXPLORER,
 }
 
+DEFAULT_WINDOW_SIZE = None
 DEFAULT_IMPLICITLY_WAIT = 30
+DEFAULT_POLLING_TIMEOUT = 30
 DEFAULT_MAXIMIZE_WINDOW = True
-DEFAULT_POLLING_TIMEOUT = None
 DEFAULT_DRIVER = drivers.CHROME
 
 GET_DRIVER_TIMEOUT = 10
@@ -57,6 +58,7 @@ def setup_config(f):
 
         driver.config = DriverConfig(
             driver,
+            window_size=self._window_size,
             implicitly_wait=self._implicitly_wait,
             maximize_window=self._maximize_window,
             polling_timeout=self._polling_timeout,
@@ -71,18 +73,20 @@ def setup_config(f):
 class DriverConfig(object):
 
     def __init__(self, driver,
+                 window_size=DEFAULT_WINDOW_SIZE,
                  implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
                  maximize_window=DEFAULT_MAXIMIZE_WINDOW,
                  polling_timeout=DEFAULT_POLLING_TIMEOUT):
         self.__driver = driver
 
+        self.WINDOW_SIZE = window_size
         self.IMPLICITLY_WAIT = implicitly_wait
         self.MAXIMIZE_WINDOW = maximize_window
         self.POLLING_TIMEOUT = polling_timeout
 
     def apply(self):
         self.apply_implicitly_wait()
-        self.apply_maximize_window()
+        self.apply_window_settings()
 
     def apply_implicitly_wait(self):
         if self.IMPLICITLY_WAIT is not None:
@@ -93,8 +97,10 @@ class DriverConfig(object):
     def implicitly_wait(self, value):
         self.__driver.implicitly_wait(value)
 
-    def apply_maximize_window(self):
-        if self.MAXIMIZE_WINDOW:
+    def apply_window_settings(self):
+        if self.WINDOW_SIZE:
+            self.__driver.set_window_size(*self.WINDOW_SIZE)
+        elif self.MAXIMIZE_WINDOW:
             self.__driver.maximize_window()
 
 
@@ -111,11 +117,13 @@ class SeleniumEx(object):
             config,
             use_remote=False,
             driver_name=DEFAULT_DRIVER,
+            window_size=DEFAULT_WINDOW_SIZE,
             maximize_window=DEFAULT_MAXIMIZE_WINDOW,
             implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
             polling_timeout=DEFAULT_POLLING_TIMEOUT):
         self._config = config
         self._use_remote = use_remote
+        self._window_size = window_size
         self._driver_name = driver_name.lower()
         self._maximize_window = maximize_window
         self._implicitly_wait = implicitly_wait
