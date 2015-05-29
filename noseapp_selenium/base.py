@@ -245,8 +245,8 @@ class SeleniumEx(object):
 
     def get_driver(self,
                    driver_name=None,
-                   timeout=GET_DRIVER_TIMEOUT,
-                   sleep=GET_DRIVER_SLEEP):
+                   timeout=None,
+                   sleep=None):
         if driver_name is not None:
             self._driver_name = driver_name
 
@@ -259,14 +259,14 @@ class SeleniumEx(object):
         if self._use_remote:
             driver = waiting_for(
                 lambda: get_driver(self.remote),
-                timeout=timeout,
-                sleep=sleep,
+                timeout=timeout or GET_DRIVER_TIMEOUT,
+                sleep=sleep or GET_DRIVER_SLEEP,
             )
         else:
             driver = waiting_for(
                 lambda: get_driver(self._get_local_driver),
-                timeout=timeout,
-                sleep=sleep,
+                timeout=timeout or GET_DRIVER_TIMEOUT,
+                sleep=sleep or GET_DRIVER_SLEEP,
             )
 
         return driver

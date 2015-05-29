@@ -97,11 +97,12 @@ def iter_invalid(form, exclude=None):
 
 class GroupContainer(object):
     """
-    Container for group class. Major task is lazy instantiation object.
+    Container for group class.
+    Major task is lazy instantiation for group object.
     """
 
     def __init__(self, form_class, weight, name):
-        self.__form_class = form_class
+        self.__group_class = form_class
         self.__weight = weight
         self.__name = name
 
@@ -110,7 +111,7 @@ class GroupContainer(object):
         return self.__name
 
     def __call__(self, driver, parent):
-        return self.__form_class(
+        return self.__group_class(
             driver,
             parent=parent,
             name=self.__name,
@@ -159,7 +160,7 @@ class GroupObserver(object):
     Publish method call for field or field group through handler at this class
     """
 
-    def __init__(self, group):
+    def __init__(self, group, parent=None):
         assert isinstance(group, FieldsGroup)
 
         self._group = group
@@ -168,13 +169,16 @@ class GroupObserver(object):
         self._parents = []
         self._children = []
 
-    def add_child(self, form):
-        assert isinstance(form, FieldsGroup)
-        self._children.append(form)
+        if parent is not None:
+            self.add_parent(parent)
 
-    def add_parent(self, form):
-        assert isinstance(form, FieldsGroup)
-        self._parents.append(form)
+    def add_child(self, group):
+        assert isinstance(group, FieldsGroup)
+        self._children.append(group)
+
+    def add_parent(self, group):
+        assert isinstance(group, FieldsGroup)
+        self._parents.append(group)
 
     def reload_handler(self):
         for child in self._children:
@@ -185,28 +189,28 @@ class GroupObserver(object):
             child.reset_memo()
 
     def fill_handler(self):
-        if self._group._settings.get('remember', True):
+        if self._group.get_option('remember', True):
             for parent in self._parents:
-                parent._fill_memo.add(self._group)
+                parent.fill_memo.add(self._group)
 
     def clear_handler(self):
         for parent in self._parents:
             try:
-                parent._fill_memo.remove(self._group)
+                parent.fill_memo.remove(self._group)
             except KeyError:
                 pass
 
     def fill_field_handler(self, field):
         assert isinstance(field, FormField)
 
-        if self._group._settings.get('remember', True):
-            self._group._fill_memo.add(field)
+        if self._group.get_option('remember', True):
+            self._group.fill_memo.add(field)
 
     def clear_field_handler(self, field):
         assert isinstance(field, FormField)
 
         try:
-            self._group._fill_memo.remove(field)
+            self._group.fill_memo.remove(field)
         except KeyError:
             pass
 
@@ -224,10 +228,7 @@ class FieldsGroup(SimpleFieldInterface):
         self._weight = weight
         self._fill_memo = set()
         self._memento = GroupMemento()
-        self._observer = GroupObserver(self)
-
-        if parent is not None:
-            self._observer.add_parent(parent)
+        self._observer = GroupObserver(self, parent=parent)
 
         if not hasattr(self, 'name'):
             self.name = name
@@ -235,10 +236,10 @@ class FieldsGroup(SimpleFieldInterface):
         meta = getattr(self, 'Meta', object())
 
         self._settings = {
-            'remember': getattr(meta, 'remember', True),
-            'allow_raises': getattr(meta, 'allow_raises', True),
             'wrapper': getattr(meta, 'wrapper', None),
+            'remember': getattr(meta, 'remember', True),
             'exclude': getattr(meta, 'exclude', tuple()),
+            'allow_raises': getattr(meta, 'allow_raises', True),
         }
 
         exclude_atr = (
@@ -283,6 +284,13 @@ class FieldsGroup(SimpleFieldInterface):
             self._driver,
             wrapper=self._settings['wrapper'],
         )
+
+    @property
+    def fill_memo(self):
+        return self._fill_memo
+
+    def get_option(self, name, default=None):
+        return self._settings.get(name, default)
 
     def submit(self):
         """
@@ -332,6 +340,8 @@ class FieldsGroup(SimpleFieldInterface):
         Get web element from meta wrapper
         """
         wrapper = self._settings['wrapper']
+
         if wrapper:
             return self._driver.query.from_object(wrapper).first()
+
         return None

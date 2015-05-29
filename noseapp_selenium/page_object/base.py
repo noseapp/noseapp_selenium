@@ -31,26 +31,26 @@ class WaitConfig(object):
                  one_of_many=False,
                  timeout=30,
                  ready_state_complete=True):
-        self._objects = objects or tuple()
-        self._one_of_many = one_of_many
-        self._timeout = timeout
-        self._ready_state_complete = ready_state_complete
+        self.__objects = objects or tuple()
+        self.__one_of_many = one_of_many
+        self.__timeout = timeout
+        self.__ready_state_complete = ready_state_complete
 
     @property
     def objects(self):
-        return self._objects
+        return self.__objects
 
     @property
     def timeout(self):
-        return self._timeout
+        return self.__timeout
 
     @property
     def one_of_many(self):
-        return self._one_of_many
+        return self.__one_of_many
 
     @property
     def ready_state_complete(self):
-        return self._ready_state_complete
+        return self.__ready_state_complete
 
 
 class PageObjectMeta(type):
