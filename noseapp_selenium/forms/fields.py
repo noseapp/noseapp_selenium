@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import abc
 from functools import wraps
 
 from selenium.common.exceptions import NoSuchElementException
@@ -20,8 +21,7 @@ def fill_field_handler(f):
     def wrapper(self, *args, **kwargs):
         result = f(self, *args, **kwargs)
 
-        if self._settings.get('remember', True):
-            self._observer.fill_field_handler(self)
+        self._observer.fill_field_handler(self)
 
         return result
     return wrapper
@@ -44,13 +44,17 @@ class FieldError(BaseException):
 
 class SimpleFieldInterface(object):
 
-    @property
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractproperty
     def weight(self):
         raise NotImplementedError
 
+    @abc.abstractmethod
     def fill(self, value=None):
         raise NotImplementedError
 
+    @abc.abstractmethod
     def clear(self):
         raise NotImplementedError
 
@@ -157,10 +161,16 @@ class Input(field_on_base(SimpleFieldInterface)):
         self.get_web_element().clear()
 
 
+assert issubclass(Input, SimpleFieldInterface)
+
+
 class TextArea(Input):
 
     class Meta:
         tag = 'textarea'
+
+
+assert issubclass(TextArea, SimpleFieldInterface)
 
 
 class Checkbox(field_on_base(SimpleFieldInterface)):
@@ -194,6 +204,9 @@ class Checkbox(field_on_base(SimpleFieldInterface)):
             el.click()
 
 
+assert issubclass(Checkbox, SimpleFieldInterface)
+
+
 class RadioButton(Checkbox):
 
     class Meta:
@@ -217,6 +230,9 @@ class RadioButton(Checkbox):
     @clear_field_handler
     def clear(self):
         pass
+
+
+assert issubclass(RadioButton, SimpleFieldInterface)
 
 
 class Select(field_on_base(SimpleFieldInterface)):
@@ -248,3 +264,6 @@ class Select(field_on_base(SimpleFieldInterface)):
     @clear_field_handler
     def clear(self):
         pass
+
+
+assert issubclass(Select, SimpleFieldInterface)

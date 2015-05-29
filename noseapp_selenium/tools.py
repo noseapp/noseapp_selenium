@@ -7,6 +7,39 @@ from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 
 
+class WebElementToObject(object):  # TODO: __setattr__
+
+    def __init__(self, web_element, allow_raise=True):
+        self.__web_element = web_element
+        self.__allow_raise = allow_raise
+
+    @property
+    def css(self):
+        return WebElementCssToObject(self.__web_element)
+
+    def __getattr__(self, item):
+        atr = self.__web_element.get_attribute(
+            item.replace('_', '-'),
+        )
+
+        if atr:
+            return atr
+
+        if self.__allow_raise:
+            raise AttributeError('{} "{}"'.format(repr(self.__web_element), item))
+
+
+class WebElementCssToObject(object):
+
+    def __init__(self, web_element):
+        self.__web_element = web_element
+
+    def __getattr__(self, item):
+        return self.__web_element.value_of_css_property(
+            item.replace('_', '-'),
+        )
+
+
 def make_object(web_element, allow_raise=True):
     """
     Convert web element to object.
@@ -19,39 +52,7 @@ def make_object(web_element, allow_raise=True):
 
     :type web_element: selenium.webdriver.remote.webdriver.WebElement
     """
-    # TODO: __setattr__
-    class WebElementToObject(object):
-
-        def __init__(self, web_element, allow_raise):
-            self.__web_element = web_element
-            self.__allow_raise = allow_raise
-
-        @property
-        def css(self):
-            return WebElementCssToObject(self.__web_element)
-
-        def __getattr__(self, item):
-            atr = self.__web_element.get_attribute(
-                item.replace('_', '-'),
-            )
-
-            if atr:
-                return atr
-
-            if allow_raise:
-                raise AttributeError('{} "{}"'.format(repr(self.__web_element), item))
-
-    class WebElementCssToObject(object):
-
-        def __init__(self, web_element):
-            self.__web_element = web_element
-
-        def __getattr__(self, item):
-            return self.__web_element.value_of_css_property(
-                item.replace('_', '-'),
-            )
-
-    return WebElementToObject(web_element, allow_raise)
+    return WebElementToObject(web_element, allow_raise=allow_raise)
 
 
 def polling(callback=None, timeout=30, sleep=0.01):
