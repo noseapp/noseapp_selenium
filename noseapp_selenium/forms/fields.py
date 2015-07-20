@@ -251,7 +251,7 @@ class Select(field_on_base(SimpleFieldInterface)):
         else:
             raise NoSuchElementException(
                 u'Cant do selected value for field "{}", selector "{}", option "{}"'.format(
-                    self.name, str(self._selector), value
+                    self.name, str(self.selector), value
                 ),
             )
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from copy import deepcopy
 from selenium.common.exceptions import NoSuchElementException
 
 from noseapp_selenium.tools import polling
@@ -157,8 +158,8 @@ class PageObject(BaseInterfaceObjectOfPage):
         self.api = self.meta.get('api_class', PageApi)(self)
         self.factory = self.meta.get('factory_class', PageFactory)(self)
 
-        self.forms = self.meta.get('forms', ChildObjects()).mount(self)
-        self.objects = self.meta.get('objects', ChildObjects()).mount(self)
+        self.forms = deepcopy(self.meta.get('forms', ChildObjects())).mount(self)
+        self.objects = deepcopy(self.meta.get('objects', ChildObjects())).mount(self)
 
         if not hasattr(self, 'wait_complete'):
             self.wait_complete = WaitComplete(self)
