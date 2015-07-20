@@ -10,7 +10,17 @@ from noseapp_selenium.forms.group import preserve_original
 
 
 class UIForm(FieldsGroup):
+    """
+    For usability only
+    """
     pass
+
+
+def to_update_values(**kwargs):
+    """
+    Syntactic sugar for updating values of FieldsGroup
+    """
+    return kwargs
 
 
 __all__ = (

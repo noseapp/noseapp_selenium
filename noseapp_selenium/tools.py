@@ -136,3 +136,31 @@ def get_query_from_driver(driver, wrapper=None):
         ).first().query
 
     return driver.query
+
+
+def get_meta_info_from_object(obj, **defaults):
+    """
+    Convert meta info class to dict
+    """
+    meta = getattr(obj, 'Meta', object())
+    dct = dict(
+        (atr_name, getattr(meta, atr_name, None))
+        for atr_name in dir(meta)
+        if not atr_name.startswith('_')
+    )
+
+    if defaults:
+        for k, v in defaults.items():
+            set_default_to_meta(meta, k, v)
+
+    return dct
+
+
+def set_default_to_meta(meta, key, default_value):
+    """
+    Set default value to dict of meta
+    """
+    if callable(default_value):
+        default_value = default_value()
+
+    meta.setdefault(key, default_value)

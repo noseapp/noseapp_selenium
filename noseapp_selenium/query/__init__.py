@@ -8,6 +8,7 @@ from noseapp_selenium.query.processor import QueryProcessor
 
 __all__ = (
     contains,
+    QueryResult,
     QueryObject,
     QueryProcessor,
 )

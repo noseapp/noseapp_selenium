@@ -5,10 +5,14 @@ from contextlib import contextmanager
 
 from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.forms.fields import FormField
+from noseapp_selenium.tools import set_default_to_meta
+from noseapp_selenium.forms.fields import field_on_base
 from noseapp_selenium.tools import get_query_from_driver
 from noseapp_selenium.forms.iterators import FieldsIterator
+from noseapp_selenium.tools import get_meta_info_from_object
 from noseapp_selenium.forms.fields import SimpleFieldInterface
 from noseapp_selenium.forms.iterators import RequiredFieldsIterator
+from noseapp_selenium.page_object.base import BaseInterfaceObjectOfPage
 from noseapp_selenium.forms.iterators import FieldsWithContainsInvalidValueIterator
 
 
@@ -110,10 +114,10 @@ class GroupContainer(object):
     def name(self):
         return self.__name
 
-    def __call__(self, driver, parent):
+    def __call__(self, group):
         return self.__group_class(
-            driver,
-            parent=parent,
+            group.driver,
+            parent=group,
             name=self.__name,
             weight=self.__weight,
         )
@@ -121,7 +125,7 @@ class GroupContainer(object):
 
 class GroupMemento(dict):
     """
-    Saved state for the fields group
+    Save state for fields of group
     """
 
     def _set_field(self, filed):
@@ -155,142 +159,144 @@ class GroupMemento(dict):
                 continue
 
 
-class GroupObserver(object):
+class FieldsGroupMeta(type):
     """
-    Publish method call for field or field group through handler at this class
+    Install fields at group
     """
 
-    def __init__(self, group, parent=None):
-        assert isinstance(group, FieldsGroup)
+    def __call__(self, *args, **kwargs):
+        instance = super(FieldsGroupMeta, self).__call__(*args, **kwargs)
 
-        self._group = group
+        for atr in (a for a in dir(instance) if not a.startswith('_') and a != 'query'):
+            maybe_field = getattr(instance, atr, None)
 
-        # listeners
-        self._parents = []
-        self._children = []
+            if isinstance(maybe_field, (FormField, GroupContainer)):
+                if maybe_field.name in instance.meta['exclude']:
+                    try:
+                        delattr(instance, atr)
+                    except AttributeError:
+                        pass
+                    continue
 
-        if parent is not None:
-            self.add_parent(parent)
+                instance.add_field(atr, deepcopy(maybe_field))
 
-    def add_child(self, group):
-        assert isinstance(group, FieldsGroup)
-        self._children.append(group)
-
-    def add_parent(self, group):
-        assert isinstance(group, FieldsGroup)
-        self._parents.append(group)
-
-    def reload_handler(self):
-        for child in self._children:
-            child.reload()
-
-    def reset_memo_handler(self):
-        for child in self._children:
-            child.reset_memo()
-
-    def fill_handler(self):
-        if self._group.get_option('remember', True):
-            for parent in self._parents:
-                parent.fill_memo.add(self._group)
-
-    def clear_handler(self):
-        for parent in self._parents:
-            try:
-                parent.fill_memo.remove(self._group)
-            except KeyError:
-                pass
-
-    def fill_field_handler(self, field):
-        assert isinstance(field, FormField)
-
-        if self._group.get_option('remember', True):
-            self._group.fill_memo.add(field)
-
-    def clear_field_handler(self, field):
-        assert isinstance(field, FormField)
-
-        try:
-            self._group.fill_memo.remove(field)
-        except KeyError:
-            pass
+        return instance
 
 
-class FieldsGroup(SimpleFieldInterface):
+class FieldsGroup(field_on_base(SimpleFieldInterface, BaseInterfaceObjectOfPage)):
     """
     Merging fields to group and simple field
     interface providing for each field through this object.
     """
 
+    __metaclass__ = FieldsGroupMeta
+
     def __init__(self, driver, weight=None, name=None, parent=None):
-        self._fields = []
-
-        self._driver = to_proxy_object(driver)
-        self._weight = weight
-        self._fill_memo = set()
-        self._memento = GroupMemento()
-        self._observer = GroupObserver(self, parent=parent)
-
         if not hasattr(self, 'name'):
             self.name = name
 
-        meta = getattr(self, 'Meta', object())
+        self.meta = get_meta_info_from_object(self)
 
-        self._settings = {
-            'wrapper': getattr(meta, 'wrapper', None),
-            'remember': getattr(meta, 'remember', True),
-            'exclude': getattr(meta, 'exclude', tuple()),
-            'allow_raises': getattr(meta, 'allow_raises', True),
-        }
+        set_default_to_meta(self.meta, 'wrapper', None)
+        set_default_to_meta(self.meta, 'exclude', tuple())
+        set_default_to_meta(self.meta, 'remember', True)
+        set_default_to_meta(self.meta, 'allow_raises', True)
 
-        exclude_atr = (
-            'query',
+        self._fields = []
+        self._memento = GroupMemento()
+
+        self.__parent = parent
+        self.__weight = weight
+        self.__fill_memo = set()
+        self.__driver = to_proxy_object(driver)
+
+    @property
+    def driver(self):
+        """
+        WebDriver or WebElement instance of current object
+        """
+        return self.__driver
+
+    @property
+    def query(self):
+        """
+        QueryProcessor instance.
+        Wrapper will be counted.
+        """
+        return get_query_from_driver(
+            self.__driver,
+            wrapper=self.meta['wrapper'],
         )
 
-        for atr in (a for a in dir(self) if not a.startswith('_') and a not in exclude_atr):
-            maybe_field = getattr(self, atr, None)
+    @property
+    def wrapper(self):
+        """
+        QueryObject of wrapper element.
+        If did not set then None.
+        """
+        return self.meta['wrapper']
 
-            if isinstance(maybe_field, FormField) or isinstance(maybe_field, GroupContainer):
-                if maybe_field.name in self._settings['exclude']:
-                    try:
-                        delattr(self, atr)
-                    except AttributeError:
-                        pass
-                    continue
+    @property
+    def weight(self):
+        """
+        Weight for sorting
+        """
+        return self.__weight
 
-                self.add_field(atr, deepcopy(maybe_field))
+    @property
+    def fill_memo(self):
+        """
+        For storage fields that been filled
+        """
+        return self.__fill_memo
+
+    def use_with(self, obj_or_driver):
+        """
+        Reset driver from object with implemented
+        BaseInterfaceObjectOfPage.
+        Can be similarly WebDriver or WebElement instance.
+        """
+        if isinstance(obj_or_driver, BaseInterfaceObjectOfPage):
+            self.__driver = obj_or_driver.driver
+        else:
+            self.__driver = obj_or_driver
 
     def add_field(self, name, field):
+        """
+        Append field to group
+        """
         if isinstance(field, FormField):
             setattr(self, name, field)
             field.bind(self)
             self._memento.add_field(field)
         elif isinstance(field, GroupContainer):
-            field = field(self._driver, self)
+            field = field(self)
             setattr(self, name, field)
-            self._observer.add_child(field)
         else:
             raise TypeError('Unknown field type')
 
         self._fields.append(field)
         self._fields.sort(key=lambda f: f.weight)
 
-    @property
-    def weight(self):
-        return self._weight
+    def add_subgroup(self, name, cls, weight=None):
+        """
+        Append class of FieldsGroup like field
+        """
+        assert issubclass(cls, FieldsGroup),\
+            '"{}" is not FieldsGroup subclass'.format(cls.__name__)
 
-    @property
-    def query(self):
-        return get_query_from_driver(
-            self._driver,
-            wrapper=self._settings['wrapper'],
+        self.add_field(
+            name,
+            make_field(
+                cls, weight=weight, name=name,
+            ),
         )
 
-    @property
-    def fill_memo(self):
-        return self._fill_memo
-
-    def get_option(self, name, default=None):
-        return self._settings.get(name, default)
+    def add_subform(self, *args, **kwargs):
+        """
+        Proxy for add_subgroup
+        """
+        self.add_subgroup(*args, **kwargs)
 
     def submit(self):
         """
@@ -300,18 +306,24 @@ class FieldsGroup(SimpleFieldInterface):
 
     def reload(self):
         self._memento.restore(self._fields)
-        self._observer.reload_handler()
 
     def reset_memo(self):
-        self._fill_memo.clear()
-        self._observer.reset_memo_handler()
+        self.__fill_memo.clear()
+
+        groups = (
+            field for field in self.__fill_memo
+            if isinstance(field, FieldsGroup)
+        )
+
+        for group in groups:
+            group.reset_memo()
 
     def update(self, **kwargs):
         """
         Update fields values
         """
         for field_name, value in kwargs.items():
-            field = getattr(self, field_name, None)
+            field = getattr(self, field_name)
 
             if isinstance(field, FormField):
                 field.value = value
@@ -322,26 +334,30 @@ class FieldsGroup(SimpleFieldInterface):
         exclude = exclude or tuple()
 
         for field in self._fields:
-            if (field not in self._fill_memo) and (field not in exclude):
+            if (field not in self.__fill_memo) and (field not in exclude):
                 field.fill()
 
+        if self.__parent:
+            self.__parent.fill_memo.add(self)
+
         self.reset_memo()
-        self._observer.fill_handler()
 
     def clear(self):
         for field in self._fields:
             field.clear()
 
         self.reset_memo()
-        self._observer.clear_handler()
 
     def get_wrapper_element(self):
         """
         Get web element from meta wrapper
         """
-        wrapper = self._settings['wrapper']
+        wrapper = self.meta['wrapper']
 
         if wrapper:
-            return self._driver.query.from_object(wrapper).first()
+            return self.__driver.query.from_object(wrapper).first()
 
         return None
+
+
+assert issubclass(FieldsGroup, (SimpleFieldInterface, BaseInterfaceObjectOfPage))
