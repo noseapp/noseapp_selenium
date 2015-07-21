@@ -20,28 +20,30 @@ REPLACE_TAGS = {
 }
 
 
-def _replace_attribute(atr_name):
+def replace_tag(tag_name):
     """
-    Replacing attribute name for
-    excluding conflict with names of globals
-    """
-    return REPLACE_ATTRIBUTES.get(atr_name, atr_name).replace('_', '-')
-
-
-def _replace_tag(tag_name):
-    """
-    Replacing tag name for usability
+    Replace name of tag, for usability only
     """
     return REPLACE_TAGS.get(tag_name, tag_name)
 
 
+def replace_attribute(atr_name):
+    """
+    Replace name of attribute for
+    exclusion conflict with global names
+    """
+    return REPLACE_ATTRIBUTES.get(atr_name, atr_name).replace('_', '-')
+
+
 def make_result(client, tag):
     """
+    Factory for creation QueryResult object
+
     :type client: selenium.webdriver.remote.webdriver.WebDriver
     :param tag: html tag name
     """
     def handle(**selector):
-        query = [_replace_tag(tag)]
+        query = [replace_tag(tag)]
 
         def get_format(value):
             if isinstance(value, contains):
@@ -50,7 +52,7 @@ def make_result(client, tag):
 
         query.extend(
             (
-                get_format(val).format(_replace_attribute(atr), val)
+                get_format(val).format(replace_attribute(atr), val)
                 for atr, val in selector.items()
             ),
         )

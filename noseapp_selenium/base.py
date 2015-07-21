@@ -17,13 +17,8 @@ from noseapp_selenium.page_object.router import PageRouter
 logger = logging.getLogger(__name__)
 
 
-_DRIVER_TO_CAPABILITIES = {
-    drivers.OPERA: DesiredCapabilities.OPERA,
-    drivers.CHROME: DesiredCapabilities.CHROME,
-    drivers.FIREFOX: DesiredCapabilities.FIREFOX,
-    drivers.PHANTOMJS: DesiredCapabilities.PHANTOMJS,
-    drivers.IE: DesiredCapabilities.INTERNETEXPLORER,
-}
+GET_DRIVER_SLEEP = 0.5
+GET_DRIVER_TIMEOUT = 10
 
 DEFAULT_WINDOW_SIZE = None
 DEFAULT_IMPLICITLY_WAIT = 30
@@ -31,8 +26,13 @@ DEFAULT_POLLING_TIMEOUT = 30
 DEFAULT_MAXIMIZE_WINDOW = True
 DEFAULT_DRIVER = drivers.CHROME
 
-GET_DRIVER_TIMEOUT = 10
-GET_DRIVER_SLEEP = 0.5
+DRIVER_TO_CAPABILITIES = {
+    drivers.OPERA: DesiredCapabilities.OPERA,
+    drivers.CHROME: DesiredCapabilities.CHROME,
+    drivers.FIREFOX: DesiredCapabilities.FIREFOX,
+    drivers.PHANTOMJS: DesiredCapabilities.PHANTOMJS,
+    drivers.IE: DesiredCapabilities.INTERNETEXPLORER,
+}
 
 
 class SeleniumExError(BaseException):
@@ -40,17 +40,24 @@ class SeleniumExError(BaseException):
 
 
 def get_capabilities(driver_name):
+    """
+    Get capabilities of driver
+
+    :param driver_name: driver name
+    :type driver_name: str
+    """
     try:
-        return _DRIVER_TO_CAPABILITIES[driver_name]
+        return DRIVER_TO_CAPABILITIES[driver_name]
     except KeyError:
         raise SeleniumExError(
-            'capabilities for driver "{}" is not found'.find(driver_name),
+            'Capabilities for driver "{}" is not found'.find(driver_name),
         )
 
 
 def setup_config(f):
     """
-    Setup config to driver and apply settings
+    Setup config to driver and apply settings.
+    Wrap driver in proxy object.
     """
     @wraps(f)
     def wrapper(self, *args, **kwargs):
@@ -71,6 +78,9 @@ def setup_config(f):
 
 
 class DriverConfig(object):
+    """
+    Configuration for WerDriver instance
+    """
 
     def __init__(self, driver,
                  window_size=DEFAULT_WINDOW_SIZE,
@@ -240,7 +250,7 @@ class SeleniumEx(object):
             return driver()
 
         raise SeleniumExError(
-            'incorrect driver name "{}"'.format(self._driver_name),
+            'Incorrect driver name "{}"'.format(self._driver_name),
         )
 
     def get_driver(self,

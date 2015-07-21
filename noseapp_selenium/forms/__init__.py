@@ -10,6 +10,9 @@ from noseapp_selenium.forms.group import preserve_original
 
 
 class UIForm(FieldsGroup):
+    """
+    For usability only
+    """
     pass
 
 

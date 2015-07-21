@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.common.action_chains import ActionChains as __ActionChains
 
 from noseapp_selenium.tools import polling
 from noseapp_selenium.tools import make_object
@@ -45,17 +46,67 @@ def to_proxy_object(obj, **kw):
     return obj
 
 
+def get_driver(driver):
+    """
+    Get instance of web driver
+    """
+    if isinstance(driver.orig(), WebDriver):
+        d = driver
+    else:
+        d = ProxyObject(driver._parent)
+
+    if isinstance(d.orig(), WebDriver):
+        return d
+
+    return get_driver(d)
+
+
+class ActionChains(__ActionChains):
+    """
+    Action chains inside ProxyObject
+    """
+
+    def __init__(self, driver):
+        super(ActionChains, self).__init__(get_driver(driver))
+
+    def perform(self):
+        """
+        We are must refresh actions after perform
+        """
+        super(ActionChains, self).perform()
+        self._actions = []
+
+    def new(self):
+        """
+        Create new instance of self
+        """
+        return self.__class__(self._driver)
+
+
 class ProxyObject(object):
     """
     Proxy for WebElement or WebDriver instance
     """
 
     def __init__(self, wrapped, config=None):
-        wrapped.query = QueryProcessor(self)
-
         self.__dict__['polling'] = True
         self.__dict__['wrapped'] = wrapped
         self.__dict__['config'] = config or wrapped.config
+
+        wrapped.query = QueryProcessor(self)
+        wrapped.action_chains = ActionChains(self)
+
+    @property
+    def config(self):
+        return self.__dict__['config']
+
+    @property
+    def query(self):
+        return self.__dict__['wrapped'].query
+
+    @property
+    def action_chains(self):
+        return self.__dict__['wrapped'].action_chains
 
     @contextmanager
     def disable_polling(self):

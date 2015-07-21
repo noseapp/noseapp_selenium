@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import time
-from Queue import Queue
+from copy import deepcopy
+from selenium.common.exceptions import NoSuchElementException
 
-from noseapp.utils.common import waiting_for
-from noseapp.utils.common import TimeoutException
-
+from noseapp_selenium.tools import polling
+from noseapp_selenium.proxy import get_driver
 from noseapp_selenium.query import QueryObject
 from noseapp_selenium.proxy import to_proxy_object
 from noseapp_selenium.tools import get_query_from_driver
+from noseapp_selenium.page_object.wait import WaitComplete
+from noseapp_selenium.page_object.wait import ContentLength
+from noseapp_selenium.tools import get_meta_info_from_object
+from noseapp_selenium.page_object.wait import wait_for_filling
 
 
 def page_element(query_object):
@@ -21,36 +24,99 @@ def page_element(query_object):
     return property(wrapper)
 
 
-class WaitConfig(object):
+class BaseInterfaceObjectOfPage(object):
     """
-    Configuration for wait complete method
+    Common interface for all objects of page
     """
 
-    def __init__(self,
-                 objects=None,
-                 one_of_many=False,
-                 timeout=30,
-                 ready_state_complete=True):
-        self.__objects = objects or tuple()
-        self.__one_of_many = one_of_many
-        self.__timeout = timeout
-        self.__ready_state_complete = ready_state_complete
+    @property
+    def query(self):
+        raise NotImplementedError('Property "query"')
 
     @property
-    def objects(self):
-        return self.__objects
+    def driver(self):
+        raise NotImplementedError('Property "driver"')
 
     @property
-    def timeout(self):
-        return self.__timeout
+    def wrapper(self):
+        raise NotImplementedError('Property "wrapper"')
+
+    def use_with(self, obj_or_driver):
+        raise NotImplementedError('Method "use with"')
+
+
+class PageApi(object):
+    """
+    For create api methods of page
+    """
+
+    def __init__(self, page):
+        self.__page = page
 
     @property
-    def one_of_many(self):
-        return self.__one_of_many
+    def page(self):
+        return self.__page
 
-    @property
-    def ready_state_complete(self):
-        return self.__ready_state_complete
+
+class PageFactory(object):
+    """
+    Factory for create child objects
+    """
+
+    def __init__(self, page):
+        self.__page = page
+
+    def __call__(self, *args, **kwargs):
+        return self.creator(*args, **kwargs)
+
+    def creator(self, cls, args=None, kwargs=None):
+        args = args or tuple()
+        kwargs = kwargs or dict()
+
+        if issubclass(cls, PageObject):
+            kwargs.setdefault('wrapper', self.__page.wrapper)
+
+        return cls(self.__page.driver, *args, **kwargs)
+
+
+class ChildObjects(dict):
+    """
+    Storage for child objects of page
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(ChildObjects, self).__init__(*args, **kwargs)
+
+        self.__dict__['__page__'] = None
+        self.__dict__['__instances__'] = {}
+
+    def __setattr__(self, key, value):
+        self.add(key, value)
+
+    def __getattr__(self, item):
+        if item in self.__dict__['__instances__']:
+            return self.__dict__['__instances__'][item]
+
+        try:
+            cls = self[item]
+        except KeyError:
+            raise AttributeError(
+                'Child object "{}" does not exist'.format(item),
+            )
+
+        self.__dict__['__instances__'][item] = self.__dict__['__page__'].factory(cls)
+
+        return self.__dict__['__instances__'][item]
+
+    def mount(self, page):
+        self.__dict__['__page__'] = page
+        return self
+
+    def add(self, key, value):
+        self.__dict__['__instances__'][key] = value
+
+    def refresh(self):
+        self.__dict__['__instances__'] = {}
 
 
 class PageObjectMeta(type):
@@ -74,119 +140,104 @@ class PageObjectMeta(type):
         return new_cls
 
 
-class PageObject(object):
+class PageObject(BaseInterfaceObjectOfPage):
     """
     Base page class
     """
 
     __metaclass__ = PageObjectMeta
 
-    def __init__(self, driver):
-        self._driver = to_proxy_object(driver)
+    def __init__(self, driver, wrapper=None):
+        self.selected = None
+        self.meta = get_meta_info_from_object(self)
 
-        meta = getattr(self, 'Meta', object())
+        self.api = self.meta.get('api_class', PageApi)(self)
+        self.factory = self.meta.get('factory_class', PageFactory)(self)
 
-        self._wrapper = getattr(meta, 'wrapper', None)
+        self.forms = deepcopy(self.meta.get('forms', ChildObjects())).mount(self)
+        self.objects = deepcopy(self.meta.get('objects', ChildObjects())).mount(self)
 
         if not hasattr(self, 'wait_complete'):
-            wait_config = getattr(meta, 'wait_config', WaitConfig())
-            self.wait_complete = WaitComplete(
-                self._driver,
-                self._wrapper,
-                self.__class__.__name__,
-                wait_config,
-            )
+            self.wait_complete = WaitComplete(self)
+
+        self.__driver = to_proxy_object(driver)
+        self.__content_length = ContentLength(driver)
+        self.__wrapper = self.meta.get('wrapper', wrapper)
 
     @property
     def query(self):
         return get_query_from_driver(
-            self._driver,
-            wrapper=self._wrapper,
-        )
-
-
-class WaitComplete(object):
-    """
-    Waiting for load page
-    """
-
-    def __init__(self, driver, wrapper, page_name, config):
-        self.config = config
-
-        self.__driver = driver
-        self.__wrapper = wrapper
-        self.__page_name = page_name
-
-    def __call__(self):
-        if self.config.ready_state_complete:
-            self.__ready_state_complete()
-
-        wait_funcs = {
-            False: self.__all,
-            True: self.__one_of_many,
-        }
-        wait_funcs[bool(self.config.one_of_many)]()
-
-    def __repr__(self):
-        return '<WaitComplete of <{}>>'.format(self.__page_name)
-
-    def __ready_state_complete(self):
-        waiting_for(
-            lambda: self.__driver.execute_script(
-                'return document.readyState == "complete"',
-            ),
-            timeout=self.config.timeout,
-        )
-
-    def __all(self):
-        if not self.config.objects:
-            return
-
-        queue = Queue()
-        map(queue.put_nowait, self.config.objects)
-        t_start = time.time()
-
-        query = get_query_from_driver(
             self.__driver,
             wrapper=self.__wrapper,
         )
 
-        while (time.time() <= t_start + self.config.timeout) or (not queue.empty()):
-            obj = queue.get()
+    @property
+    def driver(self):
+        return self.__driver
 
-            if not query.from_object(obj).exist:
-                queue.put(obj)
-        else:
-            if not queue.empty():
-                raise TimeoutException(
-                    'Could not wait ready page "{}". Timeout "{}" exceeded.'.format(
-                        self.__page_name, self.config.timeout,
-                    ),
-                )
+    @property
+    def wrapper(self):
+        return self.__wrapper
 
-    def __one_of_many(self):
-        if not self.config.objects:
-            return
+    @property
+    def children(self):
+        return []
 
-        queue = Queue()
-        map(queue.put_nowait, self.config.objects)
-        t_start = time.time()
+    @property
+    def content_length(self):
+        self.__content_length.update()
+        return int(self.__content_length)
 
-        query = get_query_from_driver(
-            self.__driver,
-            wrapper=self.__wrapper,
-        )
+    @polling(timeout=5)
+    def select(self, **ftr):
+        try:
+            key = ftr.keys()[0]
+        except IndexError:
+            raise TypeError('Filter is not defined')
+        value = ftr[key]
 
-        while time.time() <= t_start + self.config.timeout:
-            obj = queue.get()
-
-            if query.from_object(obj).exist:
-                break
-
-            queue.put(obj)
-        else:
-            raise TimeoutException(
-                'Could not wait ready page "{}". Timeout "{}" exceeded.'.format(
-                    self.__page_name, self.config.timeout,
+        try:
+            self.selected = next(
+                o for o in self.children
+                if getattr(o, key) == value,
+            )
+        except StopIteration:
+            raise NoSuchElementException(
+                'Object of "{}" is not selected. Filter: {}={}'.format(
+                    self.__class__.__name__, key, value,
                 ),
             )
+
+    def get_wrapper_element(self):
+        if self.__wrapper:
+            return self.__driver.query.from_object(
+                self.__wrapper,
+            ).first()
+
+        return None
+
+    def use_with(self, obj_or_driver):
+        if isinstance(obj_or_driver, BaseInterfaceObjectOfPage):
+            self.__driver = obj_or_driver.driver
+        else:
+            self.__driver = obj_or_driver
+
+    def wait_for_filling(self, steps=None, tries_at_step=None):
+        return wait_for_filling(
+            steps=steps,
+            tries_at_step=tries_at_step,
+            content_length=self.__content_length,
+        )
+
+    def wait(self):
+        self.wait_complete()
+
+    def refresh(self, force=False):
+        if force:
+            get_driver(self.__driver).refresh()
+
+        self.forms.refresh()
+        self.objects.refresh()
+
+
+assert issubclass(PageObject, BaseInterfaceObjectOfPage)

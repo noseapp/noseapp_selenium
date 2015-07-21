@@ -15,19 +15,19 @@ class PageIsNotFound(BaseException):
 
 class PageRouter(object):
     """
-    Realization relationships of page object to regexp string.
+    Realization of relationships from regexp to page object class
     """
 
     __rules = {}
 
     def __init__(self, driver, base_path=None):
-        self._driver = driver
-        self._base_path = base_path.rstrip('/')
+        self.__driver = driver
+        self.__base_path = base_path.rstrip('/')
 
     @classmethod
     def add_rule(cls, rule, page_cls):
         """
-        Add rule for page object class
+        Add rule for page object class.
 
         :param rule: regexp
         :param page_cls: page object class
@@ -39,7 +39,7 @@ class PageRouter(object):
 
     @property
     def base_path(self):
-        return self._base_path + '/'
+        return self.__base_path + '/'
 
     def get(self, path, wait=True, go_to=True):
         """
@@ -53,16 +53,16 @@ class PageRouter(object):
         for rule in self.__rules:
             if rule.search(path) is not None:
                 page_cls = self.__rules[rule]
-                page = page_cls(self._driver)
+                page = page_cls(self.__driver)
                 break
         else:
             raise PageIsNotFound(path)
 
-        if self._base_path is not None and go_to:
+        if self.__base_path is not None and go_to:
             self.go_to(path)
 
             if type(wait) is bool and wait:
-                page.wait_complete()
+                page.wait()
             elif isinstance(wait, QueryResult):
                 wait.wait()
             elif isinstance(wait, QueryObject):
@@ -91,6 +91,6 @@ class PageRouter(object):
 
     def go_to(self, path):
         """
-        Simple go to path.
+        Simple, go to path.
         """
-        self._driver.get('{}{}'.format(self._base_path, path))
+        self.__driver.get('{}{}'.format(self.__base_path, path))

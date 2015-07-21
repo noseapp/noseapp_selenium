@@ -4,7 +4,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-__version__ = '1.1.5'
+__version__ = '1.2.0'
 
 
 if __name__ == '__main__':
@@ -22,7 +22,7 @@ if __name__ == '__main__':
         platforms='any',
         install_requires=[
             'noseapp>=1.0.9',
-            'selenium==2.44.0',
+            'selenium==2.46.0',
         ],
         classifiers=[
             'Development Status :: 4 - Beta',

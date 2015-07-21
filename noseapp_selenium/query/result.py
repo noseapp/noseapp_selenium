@@ -6,8 +6,7 @@ from noseapp.utils.common import waiting_for
 from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webelement import WebElement
-
-from noseapp_selenium.query.exc import QueryError
+from selenium.common.exceptions import NoSuchElementException
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ DEFAULT_WAIT_TIMEOUT = 30
 
 def _error_handler(e, client, css):
     """
-    Extend error message
+    To extend error message
     """
     prefix = u' ' if e.message else u''
 
@@ -44,27 +43,25 @@ def _execute(client, css, get_all=False, allow_polling=True):
     """
     logger.debug(u'CSS: {} Get all: {}'.format(css, 'Yes' if get_all else 'No'))
 
-    css_executor = {
+    css_executors = {
         True: 'find_elements_by_css_selector',
         False: 'find_element_by_css_selector',
     }
 
     try:
         if allow_polling:
-            result = getattr(client, css_executor[get_all])(css)
+            result = getattr(client, css_executors[bool(get_all)])(css)
         elif hasattr(client, 'disable_polling'):
             with client.disable_polling():
-                result = getattr(client, css_executor[get_all])(css)
+                result = getattr(client, css_executors[bool(get_all)])(css)
         else:
-            result = getattr(client, css_executor[get_all])(css)
+            result = getattr(client, css_executors[bool(get_all)])(css)
 
         return result
 
     except WebDriverException as e:
         _error_handler(e, client, css)
         raise
-    except KeyError:
-        raise QueryError('get_all param must be bool type only')
 
 
 class QueryResult(object):
@@ -130,10 +127,11 @@ class QueryResult(object):
         try:
             return _execute(self._client, self._css, get_all=True)[index]
         except IndexError as e:
-            e.message = 'Result does not have element with index "{}". Query: "{}".'.format(
-                index, self._css,
+            raise NoSuchElementException(
+                'Result does not have element with index "{}". Css: "{}".'.format(
+                    index, self._css,
+                ),
             )
-            raise
 
     def first(self):
         """

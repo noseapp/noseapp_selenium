@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import abc
 from functools import wraps
 
 from selenium.common.exceptions import NoSuchElementException
 
 from noseapp_selenium.query import QueryObject
-from noseapp_selenium.tools import get_query_from_driver
 
 
 def selector(**kwargs):
@@ -21,7 +19,7 @@ def fill_field_handler(f):
     def wrapper(self, *args, **kwargs):
         result = f(self, *args, **kwargs)
 
-        self._observer.fill_field_handler(self)
+        self._FormField__group.fill_memo.add(self)
 
         return result
     return wrapper
@@ -32,10 +30,29 @@ def clear_field_handler(f):
     def wrapper(self, *args, **kwargs):
         result = f(self, *args, **kwargs)
 
-        self._observer.clear_field_handler(self)
+        try:
+            self._FormField__group.fill_memo.remove(self)
+        except KeyError:
+            pass
 
         return result
     return wrapper
+
+
+def field_on_base(*interfaces):
+    """
+    Create parent class on base interfaces
+    """
+    if not hasattr(field_on_base, '__classes__'):
+        field_on_base.__classes__ = {}
+
+    bases = tuple([FormField] + sorted(list(interfaces)))
+
+    try:
+        return field_on_base.__classes__[bases]
+    except KeyError:
+        field_on_base.__classes__[bases] = type('BaseField', bases, {})
+        return field_on_base.__classes__[bases]
 
 
 class FieldError(BaseException):
@@ -44,19 +61,15 @@ class FieldError(BaseException):
 
 class SimpleFieldInterface(object):
 
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractproperty
+    @property
     def weight(self):
-        raise NotImplementedError
+        raise NotImplementedError('Property "weight"')
 
-    @abc.abstractmethod
     def fill(self, value=None):
-        raise NotImplementedError
+        raise NotImplementedError('Method "fill"')
 
-    @abc.abstractmethod
     def clear(self):
-        raise NotImplementedError
+        raise NotImplementedError('Method "clear"')
 
 
 class FormField(object):
@@ -81,22 +94,22 @@ class FormField(object):
         if not isinstance(selector, dict):
             raise ValueError('incorrect selector')
 
-        self.__is_bind = False
-
-        self._settings = {}
-        self._observer = None
-        self._weight = weight
-        self._selector = selector
-
         self.value = value
         self.required = required
         self.error_mess = error_mess
         self.invalid_value = invalid_value
 
+        self.__group = None
+
+        self.__weight = weight
+        self.__selector = selector
+
+    @property
+    def _query(self):
+        return self.__group.query
+
     def bind(self, group):
-        self._driver = group._driver
-        self._observer = group._observer
-        self._settings = group._settings
+        self.__group = group
 
         if callable(self.value):
             self.value = self.value()
@@ -104,44 +117,29 @@ class FormField(object):
         if callable(self.invalid_value):
             self.invalid_value = self.invalid_value()
 
-        self.__is_bind = True
-
     @property
     def weight(self):
-        return self._weight
+        return self.__weight
+
+    @property
+    def selector(self):
+        return self.__selector
+
+    @property
+    def settings(self):
+        return self.__group.meta
 
     def get_web_element(self):
-        if not self.__is_bind:
+        if not self.__group:
             raise FieldError('Field is not binding to group')
 
-        query = get_query_from_driver(
-            self._driver,
-            wrapper=self._settings['wrapper'],
-        )
-
-        return query.from_object(
-            QueryObject(self.Meta.tag, **self._selector),
+        return self.__group.query.from_object(
+            QueryObject(self.Meta.tag, **self.__selector),
         ).first()
 
     @property
     def obj(self):
         return self.get_web_element().obj
-
-
-def field_on_base(*interfaces):
-    """
-    Create parent class on base interfaces
-    """
-    if not hasattr(field_on_base, '__classes__'):
-        field_on_base.__classes__ = {}
-
-    bases = tuple([FormField] + sorted(list(interfaces)))
-
-    try:
-        return field_on_base.__classes__[bases]
-    except KeyError:
-        field_on_base.__classes__[bases] = type('BaseField', bases, {})
-        return field_on_base.__classes__[bases]
 
 
 class Input(field_on_base(SimpleFieldInterface)):
@@ -151,8 +149,7 @@ class Input(field_on_base(SimpleFieldInterface)):
 
     @fill_field_handler
     def fill(self, value=None):
-        if value is None:
-            value = self.value
+        value = value or self.value
 
         self.get_web_element().send_keys(*value)
 
@@ -180,18 +177,17 @@ class Checkbox(field_on_base(SimpleFieldInterface)):
 
     @fill_field_handler
     def fill(self, value=None):
-        if value is None:
-            value = self.value
+        value = value or self.value
 
         el = self.get_web_element()
         current_value = el.is_selected()
 
-        if self._settings.get('allow_raises', True):
+        if self.settings['allow_raises']:
 
             if current_value and value:
-                raise FieldError('Oops, checkbox did selected')
+                raise FieldError('Oops, checkbox was selected')
             elif not current_value and not value:
-                raise FieldError('Oops, checkbox did unselected')
+                raise FieldError('Oops, checkbox was unselected')
 
         if (value and not current_value) or (not value and current_value):
             el.click()
@@ -214,8 +210,10 @@ class RadioButton(Checkbox):
 
     @fill_field_handler
     def fill(self, value=None):
+        value = value or self.value
+
         if value is None:
-            value = self.value
+            return False
 
         el = self.get_web_element()
         current_value = el.is_selected()
@@ -242,8 +240,7 @@ class Select(field_on_base(SimpleFieldInterface)):
 
     @fill_field_handler
     def fill(self, value=None):
-        if value is None:
-            value = self.value
+        value = value or self.value
 
         select = self.get_web_element()
 
@@ -257,7 +254,7 @@ class Select(field_on_base(SimpleFieldInterface)):
         else:
             raise NoSuchElementException(
                 u'Cant do selected value for field "{}", selector "{}", option "{}"'.format(
-                    self.name, str(self._selector), value
+                    self.name, str(self.selector), value
                 ),
             )
 

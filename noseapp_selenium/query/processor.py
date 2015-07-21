@@ -8,10 +8,18 @@ from noseapp_selenium.query.handler import make_result
 
 class QueryProcessor(object):
     """
+    Class implement dynamic interface for creation query to
+    instance of WebDriver or WebElement class
+
     Example:
 
         driver = WebDriver()
         query = QueryProcessor(driver)
+
+        search_field = query.div(id='search').input(_class='search').first()
+        search_field.send_keys(*'Hello World!')
+
+        or
 
         search_wrapper = query.div(id='search').first()
         search_field = query(search_wrapper).input(_class='search').first()
@@ -19,21 +27,24 @@ class QueryProcessor(object):
     """
 
     def __init__(self, client):
-        self._client = client
+        """
+        :param client: instance of WebDriver or WebElement class
+        """
+        self.__client = client
 
     def __getattr__(self, item):
-        return make_result(self._client, item)
+        return make_result(self.__client, item)
 
     def __call__(self, client):
         return self.__class__(client)
 
     @property
     def client(self):
-        return self._client
+        return self.__client
 
     def from_object(self, obj):
         """
-        Creating result from object
+        Create result from QueryObject instance
 
         :type obj: QueryObject
         """
@@ -44,9 +55,12 @@ class QueryProcessor(object):
 
     def get_text(self):
         """
-        Get text from page or web element
-        """
-        if isinstance(self._client.orig(), WebElement):
-            return self._client.text
+        Get text from driver or web element.
 
-        return self._client.find_element_by_tag_name('body').text
+        if client is instance of WebDriver, then will
+        be selected tag body as client.
+        """
+        if isinstance(self.__client.orig(), WebElement):
+            return self.__client.text
+
+        return self.__client.find_element_by_tag_name('body').text
