@@ -212,6 +212,9 @@ class RadioButton(Checkbox):
     def fill(self, value=None):
         value = value or self.value
 
+        if value is None:
+            return False
+
         el = self.get_web_element()
         current_value = el.is_selected()
         changed = False

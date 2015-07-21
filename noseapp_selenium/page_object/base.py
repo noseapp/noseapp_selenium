@@ -57,10 +57,6 @@ class PageApi(object):
     def page(self):
         return self.__page
 
-    @property
-    def object(self):
-        return self.__page
-
 
 class PageFactory(object):
     """
@@ -207,7 +203,7 @@ class PageObject(BaseInterfaceObjectOfPage):
             )
         except StopIteration:
             raise NoSuchElementException(
-                'Object of "{}" not selected. Filter: {}={}'.format(
+                'Object of "{}" is not selected. Filter: {}={}'.format(
                     self.__class__.__name__, key, value,
                 ),
             )
@@ -217,6 +213,7 @@ class PageObject(BaseInterfaceObjectOfPage):
             return self.__driver.query.from_object(
                 self.__wrapper,
             ).first()
+
         return None
 
     def use_with(self, obj_or_driver):
@@ -232,12 +229,8 @@ class PageObject(BaseInterfaceObjectOfPage):
             content_length=self.__content_length,
         )
 
-    def wait(self, steps=None, tries_at_step=None):
+    def wait(self):
         self.wait_complete()
-        self.wait_for_filling(
-            steps=steps,
-            tries_at_step=tries_at_step,
-        )
 
     def refresh(self, force=False):
         if force:

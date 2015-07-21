@@ -16,13 +16,6 @@ class UIForm(FieldsGroup):
     pass
 
 
-def to_update_values(**kwargs):
-    """
-    Syntactic sugar for updating values of FieldsGroup
-    """
-    return kwargs
-
-
 __all__ = (
     fields,
     UIForm,

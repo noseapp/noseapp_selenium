@@ -265,13 +265,13 @@ class FieldsGroup(field_on_base(SimpleFieldInterface, BaseInterfaceObjectOfPage)
         """
         Append field to group
         """
-        if isinstance(field, FormField):
+        if isinstance(field, GroupContainer):
+            field = field(self)
+            setattr(self, name, field)
+        elif isinstance(field, FormField):
             setattr(self, name, field)
             field.bind(self)
             self._memento.add_field(field)
-        elif isinstance(field, GroupContainer):
-            field = field(self)
-            setattr(self, name, field)
         else:
             raise TypeError('Unknown field type')
 
@@ -305,9 +305,15 @@ class FieldsGroup(field_on_base(SimpleFieldInterface, BaseInterfaceObjectOfPage)
         pass
 
     def reload(self):
+        """
+        Restore values of fields after changes
+        """
         self._memento.restore(self._fields)
 
     def reset_memo(self):
+        """
+        To reset fill memo
+        """
         self.__fill_memo.clear()
 
         groups = (
@@ -323,14 +329,21 @@ class FieldsGroup(field_on_base(SimpleFieldInterface, BaseInterfaceObjectOfPage)
         Update fields values
         """
         for field_name, value in kwargs.items():
-            field = getattr(self, field_name)
+            field = getattr(self, field_name, None)
 
-            if isinstance(field, FormField):
-                field.value = value
-            elif isinstance(field, FieldsGroup) and isinstance(value, dict):
+            if isinstance(field, FieldsGroup):
                 field.update(**value)
+            elif isinstance(field, FormField):
+                field.value = value
+            else:
+                raise LookupError(
+                    'Field "{}" not found'.format(field_name),
+                )
 
     def fill(self, exclude=None):
+        """
+        Fill all fields in group
+        """
         exclude = exclude or tuple()
 
         for field in self._fields:
@@ -343,6 +356,9 @@ class FieldsGroup(field_on_base(SimpleFieldInterface, BaseInterfaceObjectOfPage)
         self.reset_memo()
 
     def clear(self):
+        """
+        Fields to clear
+        """
         for field in self._fields:
             field.clear()
 

@@ -29,7 +29,7 @@ class WaitConfig(object):
                  timeout=30,
                  objects=None,
                  one_of_many=False,
-                 wait_for_filling=False,
+                 wait_for_filling=True,
                  ready_state_complete=False):
         self.__timeout = timeout
         self.__one_of_many = one_of_many
