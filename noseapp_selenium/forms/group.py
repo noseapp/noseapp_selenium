@@ -20,7 +20,7 @@ def make_field(group_class, weight=None, name=None):
     """
     Usage group like field
 
-    :type form_class: UIForm
+    :type group_class: UIForm
     """
     if not issubclass(group_class, FieldsGroup):
         raise ValueError('group_class is not FieldsGroup subclass')

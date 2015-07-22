@@ -54,7 +54,7 @@ def get_capabilities(driver_name):
         )
 
 
-def setup_config(f):
+def patch(f):
     """
     Setup config to driver and apply settings.
     Wrap driver in proxy object.
@@ -171,8 +171,11 @@ class SeleniumEx(object):
     def config(self):
         return self._config
 
-    @setup_config
+    @patch
     def remote(self):
+        """
+        :return: selenium.webdriver.remote.webdriver.WebDriver
+        """
         remote_config = self._config.get('REMOTE_WEBDRIVER')
 
         if not remote_config:
@@ -191,8 +194,11 @@ class SeleniumEx(object):
             **options
         )
 
-    @setup_config
+    @patch
     def ie(self):
+        """
+        :return: selenium.webdriver.ie.webdriver.WebDriver
+        """
         ie_config = self._config.get('IE_WEBDRIVER')
 
         if not ie_config:
@@ -202,8 +208,11 @@ class SeleniumEx(object):
 
         return drivers.IeWebDriver(**ie_config)
 
-    @setup_config
+    @patch
     def chrome(self):
+        """
+        :return: selenium.webdriver.chrome.webdriver.WebDriver
+        """
         chrome_config = self._config.get('CHROME_WEBDRIVER')
 
         if not chrome_config:
@@ -213,16 +222,22 @@ class SeleniumEx(object):
 
         return drivers.ChromeWebDriver(**chrome_config)
 
-    @setup_config
+    @patch
     def firefox(self):
+        """
+        :return: selenium.webdriver.firefox.webdriver.WebDriver
+        """
         firefox_config = self._config.get('FIREFOX_WEBDRIVER', {})
 
         logger.debug('Firefox config: {}'.format(str(firefox_config)))
 
         return drivers.FirefoxWebDriver(**firefox_config)
 
-    @setup_config
+    @patch
     def phantomjs(self):
+        """
+        :return: selenium.webdriver.phantomjs.webdriver.WebDriver
+        """
         phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
 
         if not phantom_config:
@@ -232,8 +247,11 @@ class SeleniumEx(object):
 
         return drivers.PhantomJSWebDriver(**phantom_config)
 
-    @setup_config
+    @patch
     def opera(self):
+        """
+        :return: selenium.webdriver.opera.webdriver.WebDriver
+        """
         opera_config = self._config.get('OPERA_WEBDRIVER')
 
         if not opera_config:
@@ -257,6 +275,13 @@ class SeleniumEx(object):
                    driver_name=None,
                    timeout=None,
                    sleep=None):
+        """
+        :param driver_name: name of web driver
+        :param timeout: timeout for getting driver
+        :param sleep: sleep for polling
+
+        :return: selenium.webdriver.remote.webdriver.WebDriver
+        """
         if driver_name is not None:
             self._driver_name = driver_name
 
