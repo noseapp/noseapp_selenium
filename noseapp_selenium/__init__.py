@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from noseapp_selenium import drivers
 from noseapp_selenium.base import SeleniumEx
 from noseapp_selenium.config import make_config
 from noseapp_selenium.query import QueryProcessor

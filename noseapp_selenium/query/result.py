@@ -126,7 +126,7 @@ class QueryResult(object):
         """
         try:
             return _execute(self._client, self._css, get_all=True)[index]
-        except IndexError as e:
+        except IndexError:
             raise NoSuchElementException(
                 'Result does not have element with index "{}". Css: "{}".'.format(
                     index, self._css,

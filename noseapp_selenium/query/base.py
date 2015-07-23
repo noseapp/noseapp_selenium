@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 class QueryObject(object):
     """
     Structure of css query.
