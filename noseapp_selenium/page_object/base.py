@@ -47,7 +47,7 @@ class BaseInterfaceObjectOfPage(object):
 
 class PageApi(object):
     """
-    For create api methods of page
+    For creating api methods of page
     """
 
     def __init__(self, page):

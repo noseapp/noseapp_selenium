@@ -18,6 +18,7 @@ config module ::
     SELENIUM_EX = make_config()
 
     SELENIUM_EX.configure(
+        polling_timeout=30,
         implicitly_wait=30,
         maximize_window=True,
     )
@@ -223,27 +224,29 @@ Page Object
 
     from noseapp.ext.selenium import PageObject
     from noseapp.ext.selenium import PageRouter
+    from noseapp.ext.selenium.page_object import PageApi
     from noseapp.ext.selenium.page_object import WaitConfig
+    from noseapp.ext.selenium.page_object import ChildObjects
+
+
+    class MyPageApi(PageApi):
+
+        def click_on_element(self):
+            self.page.element.click()
 
 
     class MyPage(PageObject):
         class Meta:
-            wrapper = QueryObject('div', _class='wrapper')
-            wait_config = WaitConfig(  # wait_complete method configuration
-                objects=(
-                    QueryObject('input', value='input value'),
-                    QueryObject('div', _class='hello'),
-                ),
-                one_of_many=True,
+            api_class = MyPageApi
+            forms = ChildObjects(
+                my_form=MyForm,
             )
+            objects=ChildObjects(
+                my_child_object=...,
+            )
+            wrapper = QueryObject('div', _class='wrapper')
 
         element = QueryObject('li', data_blank='data-blank')
-
-        def get_my_form(self):
-            """
-            Factory method for my form
-            """
-            return MyForm(self._driver)
 
 
     # Create relationship
@@ -253,9 +256,13 @@ Page Object
 
     router = PageRouter(driver, base_path='http://my-site.com')
     page = router.get('/my_page/')  # or page = MyPage(driver)
-    form = page.get_my_form()
+    page.forms.my_form.fill()
+    page.forms.my_form.submit()
+    # page.objects.my_child_object ...
+    page.refresh()  # to refresh instances
+    page.refresh(force=True)  # to refresh instances and reload page
 
-    page.element.click()
+    page.element.click() or page.api.click_on_element()
 
     # Query to page object wrapper
 

@@ -146,6 +146,9 @@ class WaitComplete(object):
 
 
 class ContentLength(object):
+    """
+    Length of HTML string at current moment
+    """
 
     def __init__(self, client):
         self.__client = client
@@ -175,8 +178,14 @@ class ContentLength(object):
             return 0
 
     def update(self):
+        """
+        To update value.
+        If is updated then return True else False.
+
+        :return: bool
+        """
         current_value = self._get()
-        is_update = current_value > self.__value
+        is_update = current_value > self.__value or current_value < self.__value
         self.__value = current_value
         return is_update
 

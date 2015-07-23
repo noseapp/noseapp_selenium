@@ -54,7 +54,7 @@ def get_capabilities(driver_name):
         )
 
 
-def setup_config(f):
+def patch(f):
     """
     Setup config to driver and apply settings.
     Wrap driver in proxy object.
@@ -63,13 +63,7 @@ def setup_config(f):
     def wrapper(self, *args, **kwargs):
         driver = f(self, *args, **kwargs)
 
-        driver.config = DriverConfig(
-            driver,
-            window_size=self._window_size,
-            implicitly_wait=self._implicitly_wait,
-            maximize_window=self._maximize_window,
-            polling_timeout=self._polling_timeout,
-        )
+        driver.config = DriverConfig(self, driver)
         driver.config.apply()
 
         return to_proxy_object(driver)
@@ -82,17 +76,17 @@ class DriverConfig(object):
     Configuration for WerDriver instance
     """
 
-    def __init__(self, driver,
-                 window_size=DEFAULT_WINDOW_SIZE,
-                 implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
-                 maximize_window=DEFAULT_MAXIMIZE_WINDOW,
-                 polling_timeout=DEFAULT_POLLING_TIMEOUT):
+    def __init__(self, ex, driver):
+        """
+        :type ex: noseapp_selenium.base.SeleniumEx
+        :type driver: selenium.webdriver.remote.webdriver.WebDriver
+        """
         self.__driver = driver
 
-        self.WINDOW_SIZE = window_size
-        self.IMPLICITLY_WAIT = implicitly_wait
-        self.MAXIMIZE_WINDOW = maximize_window
-        self.POLLING_TIMEOUT = polling_timeout
+        self.WINDOW_SIZE = ex.window_size
+        self.IMPLICITLY_WAIT = ex.implicitly_wait
+        self.MAXIMIZE_WINDOW = ex.maximize_window
+        self.POLLING_TIMEOUT = ex.polling_timeout
 
     def apply(self):
         self.apply_implicitly_wait()
@@ -131,13 +125,16 @@ class SeleniumEx(object):
             maximize_window=DEFAULT_MAXIMIZE_WINDOW,
             implicitly_wait=DEFAULT_IMPLICITLY_WAIT,
             polling_timeout=DEFAULT_POLLING_TIMEOUT):
-        self._config = config
-        self._use_remote = use_remote
-        self._window_size = window_size
-        self._driver_name = driver_name.lower()
-        self._maximize_window = maximize_window
-        self._implicitly_wait = implicitly_wait
-        self._polling_timeout= polling_timeout
+        # self settings
+        self.__config = config
+        self.__use_remote = use_remote
+        self.__driver_name = driver_name.lower()
+
+        # will be pushed to web driver config
+        self.__window_size = window_size
+        self.__maximize_window = maximize_window
+        self.__implicitly_wait = implicitly_wait
+        self.__polling_timeout = polling_timeout
 
         logger.debug(
             'Selenium-EX initialize. Config: {}, Use Remote: {}, Driver name: {}'.format(
@@ -169,11 +166,38 @@ class SeleniumEx(object):
 
     @property
     def config(self):
-        return self._config
+        return self.__config
 
-    @setup_config
+    @property
+    def use_remote(self):
+        return self.__use_remote
+
+    @property
+    def driver_name(self):
+        return self.__driver_name
+
+    @property
+    def window_size(self):
+        return self.__window_size
+
+    @property
+    def maximize_window(self):
+        return self.__maximize_window
+
+    @property
+    def implicitly_wait(self):
+        return self.__implicitly_wait
+
+    @property
+    def polling_timeout(self):
+        return self.__polling_timeout
+
+    @patch
     def remote(self):
-        remote_config = self._config.get('REMOTE_WEBDRIVER')
+        """
+        :return: selenium.webdriver.remote.webdriver.WebDriver
+        """
+        remote_config = self.__config.get('REMOTE_WEBDRIVER')
 
         if not remote_config:
             raise SeleniumExError('remote web driver settings not found')
@@ -181,9 +205,9 @@ class SeleniumEx(object):
         logger.debug('Remote config: {}'.format(str(remote_config)))
 
         options = remote_config.get('options', {})
-        capabilities = get_capabilities(self._driver_name)
+        capabilities = get_capabilities(self.__driver_name)
         capabilities.update(
-            remote_config['capabilities'][self._driver_name],
+            remote_config['capabilities'][self.__driver_name],
         )
 
         return drivers.RemoteWebDriver(
@@ -191,9 +215,12 @@ class SeleniumEx(object):
             **options
         )
 
-    @setup_config
+    @patch
     def ie(self):
-        ie_config = self._config.get('IE_WEBDRIVER')
+        """
+        :return: selenium.webdriver.ie.webdriver.WebDriver
+        """
+        ie_config = self.__config.get('IE_WEBDRIVER')
 
         if not ie_config:
             raise SeleniumExError('ie web driver settings not found')
@@ -202,9 +229,12 @@ class SeleniumEx(object):
 
         return drivers.IeWebDriver(**ie_config)
 
-    @setup_config
+    @patch
     def chrome(self):
-        chrome_config = self._config.get('CHROME_WEBDRIVER')
+        """
+        :return: selenium.webdriver.chrome.webdriver.WebDriver
+        """
+        chrome_config = self.__config.get('CHROME_WEBDRIVER')
 
         if not chrome_config:
             raise SeleniumExError('google chrome web driver settings not found')
@@ -213,17 +243,23 @@ class SeleniumEx(object):
 
         return drivers.ChromeWebDriver(**chrome_config)
 
-    @setup_config
+    @patch
     def firefox(self):
-        firefox_config = self._config.get('FIREFOX_WEBDRIVER', {})
+        """
+        :return: selenium.webdriver.firefox.webdriver.WebDriver
+        """
+        firefox_config = self.__config.get('FIREFOX_WEBDRIVER', {})
 
         logger.debug('Firefox config: {}'.format(str(firefox_config)))
 
         return drivers.FirefoxWebDriver(**firefox_config)
 
-    @setup_config
+    @patch
     def phantomjs(self):
-        phantom_config = self._config.get('PHANTOMJS_WEBDRIVER')
+        """
+        :return: selenium.webdriver.phantomjs.webdriver.WebDriver
+        """
+        phantom_config = self.__config.get('PHANTOMJS_WEBDRIVER')
 
         if not phantom_config:
             raise SeleniumExError('phantom js web driver settings not found')
@@ -232,9 +268,12 @@ class SeleniumEx(object):
 
         return drivers.PhantomJSWebDriver(**phantom_config)
 
-    @setup_config
+    @patch
     def opera(self):
-        opera_config = self._config.get('OPERA_WEBDRIVER')
+        """
+        :return: selenium.webdriver.opera.webdriver.WebDriver
+        """
+        opera_config = self.__config.get('OPERA_WEBDRIVER')
 
         if not opera_config:
             raise SeleniumExError('opera web driver settings not found')
@@ -244,21 +283,28 @@ class SeleniumEx(object):
         return drivers.OperaWebDriver(**opera_config)
 
     def _get_local_driver(self):
-        driver = getattr(self, self._driver_name, None)
+        driver = getattr(self, self.__driver_name, None)
 
         if driver:
             return driver()
 
         raise SeleniumExError(
-            'Incorrect driver name "{}"'.format(self._driver_name),
+            'Incorrect driver name "{}"'.format(self.__driver_name),
         )
 
     def get_driver(self,
                    driver_name=None,
                    timeout=None,
                    sleep=None):
+        """
+        :param driver_name: name of web driver
+        :param timeout: timeout for getting driver
+        :param sleep: sleep for polling
+
+        :return: selenium.webdriver.remote.webdriver.WebDriver
+        """
         if driver_name is not None:
-            self._driver_name = driver_name
+            self.__driver_name = driver_name
 
         def get_driver(func):
             try:
@@ -266,7 +312,7 @@ class SeleniumEx(object):
             except (URLError, WebDriverException):
                 return None
 
-        if self._use_remote:
+        if self.__use_remote:
             driver = waiting_for(
                 lambda: get_driver(self.remote),
                 timeout=timeout or GET_DRIVER_TIMEOUT,
