@@ -105,8 +105,8 @@ class GroupContainer(object):
     Major task is lazy instantiation for group object.
     """
 
-    def __init__(self, form_class, weight, name):
-        self.__group_class = form_class
+    def __init__(self, group_class, weight, name):
+        self.__group_class = group_class
         self.__weight = weight
         self.__name = name
 
