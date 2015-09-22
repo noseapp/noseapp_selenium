@@ -30,8 +30,8 @@ class WebElementToObject(object):  # TODO: __setattr__
 
     def __setattr__(self, key, value):
         self.__dict__['__web_element__'].parent.execute_script(
-            'document.getElementsByClassName(arguments[0])[0].setAttribute(arguments[1], arguments[2]);',
-            self.__dict__['__web_element__'].get_attribute('class'),
+            'arguments[0].setAttribute(arguments[1], arguments[2]);',
+            self.__dict__['__web_element__'],
             key,
             value
         )
