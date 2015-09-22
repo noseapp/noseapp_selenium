@@ -47,6 +47,14 @@ class WebElementCssToObject(object):
             item.replace('_', '-'),
         )
 
+    def __setattr__(self, key, value):
+        self.__dict__['__web_element__'].parent.execute_script(
+            'arguments[0].style[arguments[1]] = arguments[2];',
+            self.__dict__['__web_element__'],
+            key,
+            value
+        )
+
 
 def make_object(web_element, allow_raise=True):
     """
