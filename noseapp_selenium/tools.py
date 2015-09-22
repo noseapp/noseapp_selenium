@@ -10,32 +10,40 @@ from selenium.common.exceptions import WebDriverException
 class WebElementToObject(object):  # TODO: __setattr__
 
     def __init__(self, web_element, allow_raise=True):
-        self.__web_element = web_element
-        self.__allow_raise = allow_raise
+        self.__dict__['__web_element__'] = web_element
+        self.__dict__['__allow_raise__'] = allow_raise
 
     @property
     def css(self):
-        return WebElementCssToObject(self.__web_element)
+        return WebElementCssToObject(self.__dict__['__web_element__'])
 
     def __getattr__(self, item):
-        atr = self.__web_element.get_attribute(
+        atr = self.__dict__['__web_element__'].get_attribute(
             item.replace('_', '-'),
         )
 
         if atr:
             return atr
 
-        if self.__allow_raise:
-            raise AttributeError('{} "{}"'.format(repr(self.__web_element), item))
+        if self.__dict__['__allow_raise__']:
+            raise AttributeError('{} "{}"'.format(repr(self.__dict__['__web_element__']), item))
+
+    def __setattr__(self, key, value):
+        self.__dict__['__web_element__'].parent.execute_script(
+            'document.getElementsByClassName(arguments[0])[0].setAttribute(arguments[1], arguments[2]);',
+            self.__dict__['__web_element__'].get_attribute('class'),
+            key,
+            value
+        )
 
 
 class WebElementCssToObject(object):
 
     def __init__(self, web_element):
-        self.__web_element = web_element
+        self.__dict__['__web_element__'] = web_element
 
     def __getattr__(self, item):
-        return self.__web_element.value_of_css_property(
+        return self.__dict__['__web_element__'].value_of_css_property(
             item.replace('_', '-'),
         )
 
