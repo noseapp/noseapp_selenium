@@ -19,7 +19,7 @@ class WebElementToObject(object):
 
     def __getattr__(self, item):
         atr = self.__dict__['__web_element__'].get_attribute(
-            change_name_from_python_style_to_js(item),
+            change_name_from_python_style_to_html(item),
         )
 
         if atr:
@@ -32,7 +32,7 @@ class WebElementToObject(object):
         self.__dict__['__web_element__'].parent.execute_script(
             'arguments[0].setAttribute(arguments[1], arguments[2]);',
             self.__dict__['__web_element__'],
-            change_name_from_python_style_to_js(key),
+            change_name_from_python_style_to_html(key),
             value
         )
 
@@ -44,14 +44,14 @@ class WebElementCssToObject(object):
 
     def __getattr__(self, item):
         return self.__dict__['__web_element__'].value_of_css_property(
-            change_name_from_python_style_to_js(item),
+            change_name_from_python_style_to_html(item),
         )
 
     def __setattr__(self, key, value):
         self.__dict__['__web_element__'].parent.execute_script(
             'arguments[0].style[arguments[1]] = arguments[2];',
             self.__dict__['__web_element__'],
-            change_name_from_python_style_to_js(key),
+            change_name_from_python_style_to_html(key),
             value
         )
 
@@ -182,12 +182,12 @@ def set_default_to_meta(meta, key, default_value):
     meta.setdefault(key, default_value)
 
 
-def change_name_from_python_style_to_js(name):
+def change_name_from_python_style_to_html(name):
     """
     Change name's style from python to js
     :param name: name in python style
     """
     name = name.replace('_', '-')
     if name.startswith('-'):
-        name = name[1::]
+        return name[1::]
     return name
