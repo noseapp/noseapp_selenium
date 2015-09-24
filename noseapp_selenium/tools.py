@@ -7,7 +7,7 @@ from noseapp.utils.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 
 
-class WebElementToObject(object):  # TODO: __setattr__
+class WebElementToObject(object):
 
     def __init__(self, web_element, allow_raise=True):
         self.__dict__['__web_element__'] = web_element
@@ -19,7 +19,7 @@ class WebElementToObject(object):  # TODO: __setattr__
 
     def __getattr__(self, item):
         atr = self.__dict__['__web_element__'].get_attribute(
-            item.replace('_', '-'),
+            change_name_from_python_style_to_js(item),
         )
 
         if atr:
@@ -32,7 +32,7 @@ class WebElementToObject(object):  # TODO: __setattr__
         self.__dict__['__web_element__'].parent.execute_script(
             'arguments[0].setAttribute(arguments[1], arguments[2]);',
             self.__dict__['__web_element__'],
-            key,
+            change_name_from_python_style_to_js(key),
             value
         )
 
@@ -44,14 +44,14 @@ class WebElementCssToObject(object):
 
     def __getattr__(self, item):
         return self.__dict__['__web_element__'].value_of_css_property(
-            item.replace('_', '-'),
+            change_name_from_python_style_to_js(item),
         )
 
     def __setattr__(self, key, value):
         self.__dict__['__web_element__'].parent.execute_script(
             'arguments[0].style[arguments[1]] = arguments[2];',
             self.__dict__['__web_element__'],
-            key,
+            change_name_from_python_style_to_js(key),
             value
         )
 
@@ -180,3 +180,14 @@ def set_default_to_meta(meta, key, default_value):
         default_value = default_value()
 
     meta.setdefault(key, default_value)
+
+
+def change_name_from_python_style_to_js(name):
+    """
+    Change name's style from python to js
+    :param name: name in python style
+    """
+    name = name.replace('_', '-')
+    if name.startswith('-'):
+        name = name[1::]
+    return name
